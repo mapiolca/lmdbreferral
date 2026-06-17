@@ -86,7 +86,7 @@ class LmdbReferralLink extends CommonObject
 	 * @param object $obj SQL object
 	 * @return void
 	 */
-	public function setVarsFromFetchObj($obj)
+	public function setVarsFromFetchObj(&$obj)
 	{
 		foreach ($obj as $key => $value) {
 			$this->$key = $value;
