@@ -17,6 +17,7 @@
 - Correction du rendu HTML de l’infobulle `getNomUrl()` des liens de parrainage.
 - Ajout du bloc natif `Objets liés` sur la fiche lien et liaison automatique des devis signés.
 - Uniformisation des listes de parrainages avec filtres natifs, tri, alignements, cases à cocher et annulation en masse.
+- Ajout de l’édition indépendante du champ `Parrain / apporteur` depuis la fiche tiers en consultation.
 
 ## 1.0.0
 

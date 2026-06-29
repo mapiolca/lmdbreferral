@@ -173,24 +173,44 @@ class ActionsLmdbReferral
 		if (!in_array('thirdpartycard', $contexts, true)) {
 			return 0;
 		}
-		if ($action !== 'lmdbreferral_cancel_referrer') {
-			return 0;
-		}
-		if (!lmdbreferralCanDo($user, 'cancel', $object)) {
-			accessforbidden();
-		}
-		lmdbreferralCheckToken();
-
 		$socid = !empty($object->id) ? (int) $object->id : GETPOSTINT('socid');
 		$service = new LmdbReferralService($this->db);
-		$result = $service->replaceFromValue('', $socid, $user);
-		if ($result < 0) {
-			setEventMessages($langs->trans($service->error), $service->errors, 'errors');
-			return -1;
+
+		if ($action === 'lmdbreferral_save_referrer') {
+			if (!lmdbreferralCanDo($user, 'write', $object)) {
+				accessforbidden();
+			}
+			lmdbreferralCheckToken();
+
+			$value = GETPOST('lmdbreferral_referrer', 'alphanohtml');
+			$result = $service->replaceFromValue($value, $socid, $user);
+			if ($result < 0) {
+				setEventMessages($langs->trans($service->error), $service->errors, 'errors');
+				$action = 'lmdbreferral_edit_referrer';
+				return -1;
+			}
+			setEventMessages($langs->trans('LmdbReferralReferrerUpdated'), null, 'mesgs');
+			header('Location: '.DOL_URL_ROOT.'/societe/card.php?socid='.$socid);
+			exit;
 		}
-		setEventMessages($langs->trans('LmdbReferralReferrerRemoved'), null, 'mesgs');
-		header('Location: '.DOL_URL_ROOT.'/societe/card.php?socid='.$socid);
-		exit;
+
+		if ($action === 'lmdbreferral_cancel_referrer') {
+			if (!lmdbreferralCanDo($user, 'cancel', $object)) {
+				accessforbidden();
+			}
+			lmdbreferralCheckToken();
+
+			$result = $service->replaceFromValue('', $socid, $user);
+			if ($result < 0) {
+				setEventMessages($langs->trans($service->error), $service->errors, 'errors');
+				return -1;
+			}
+			setEventMessages($langs->trans('LmdbReferralReferrerRemoved'), null, 'mesgs');
+			header('Location: '.DOL_URL_ROOT.'/societe/card.php?socid='.$socid);
+			exit;
+		}
+
+		return 0;
 	}
 
 	/**
@@ -263,11 +283,19 @@ class ActionsLmdbReferral
 		$langs->load('commercial');
 		$service = new LmdbReferralService($this->db);
 		$links = $service->fetchActiveByFilleul((int) $object->id);
-		if (empty($links)) {
+		$locked = $service->isLockedBySignedProposal((int) $object->id);
+		$canWrite = lmdbreferralCanDo($user, 'write', $object);
+		$canCancel = lmdbreferralCanDo($user, 'cancel', $object);
+		if (empty($links) && !$canWrite) {
 			return 0;
 		}
 
-		$link = $links[0];
+		$link = !empty($links) ? $links[0] : null;
+		$selected = $link ? $this->getActiveReferrerValue((int) $object->id) : '';
+		if (GETPOSTISSET('lmdbreferral_referrer')) {
+			$selected = GETPOST('lmdbreferral_referrer', 'alphanohtml');
+		}
+		$editMode = ($action === 'lmdbreferral_edit_referrer' && $canWrite && !$locked);
 		$wrapperId = 'lmdbreferral-referrer-view-wrapper-'.((int) $object->id);
 		$rowId = 'lmdbreferral-referrer-view-row-'.((int) $object->id);
 
@@ -276,14 +304,26 @@ class ActionsLmdbReferral
 		print '<table class="border tableforfield centpercent">';
 		print '<tr id="'.$rowId.'" class="lmdbreferral-referrer-view-row"><td class="titlefieldmiddle">';
 		print '<table class="nobordernopadding centpercent"><tr><td>'.$langs->trans('LmdbReferralReferrer').'</td>';
-		if (lmdbreferralCanDo($user, 'write', $object)) {
-			print '<td class="right"><a class="editfielda" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=edit&token='.newToken().'">'.img_edit($langs->trans('Modify'), 1).'</a></td>';
+		if ($canWrite && !$locked && !$editMode) {
+			print '<td class="right"><a class="editfielda" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=lmdbreferral_edit_referrer&token='.newToken().'">'.img_edit($langs->trans('Modify'), 1).'</a></td>';
 		}
 		print '</tr></table>';
 		print '</td><td>';
-		print lmdbreferralGetReferrerNomUrl($link->referrer_type, $link->referrer_type === 'soc' ? (int) $link->fk_soc_parrain : (int) $link->fk_user_parrain);
-		if (lmdbreferralCanDo($user, 'cancel', $object) && !$service->isLockedBySignedProposal((int) $object->id)) {
-			print ' &nbsp; <a class="reposition" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=lmdbreferral_cancel_referrer&token='.newToken().'">'.img_delete($langs->trans('LmdbReferralRemoveReferrer')).'</a>';
+		if ($editMode) {
+			print '<form method="POST" action="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'" class="lmdbreferral-referrer-inline-form">';
+			print '<input type="hidden" name="token" value="'.newToken().'">';
+			print '<input type="hidden" name="action" value="lmdbreferral_save_referrer">';
+			print lmdbreferralSelectReferrer('lmdbreferral_referrer', $selected, (int) $object->id);
+			print ' <input type="submit" class="button small" value="'.$langs->trans('Save').'">';
+			print ' <a class="button button-cancel small" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'">'.$langs->trans('Cancel').'</a>';
+			print '</form>';
+		} elseif ($link) {
+			print lmdbreferralGetReferrerNomUrl($link->referrer_type, $link->referrer_type === 'soc' ? (int) $link->fk_soc_parrain : (int) $link->fk_user_parrain);
+			if ($canCancel && !$locked) {
+				print ' &nbsp; <a class="reposition" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=lmdbreferral_cancel_referrer&token='.newToken().'">'.img_delete($langs->trans('LmdbReferralRemoveReferrer')).'</a>';
+			}
+		} else {
+			print '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>';
 		}
 		print '</td></tr>';
 		print '</table>';
