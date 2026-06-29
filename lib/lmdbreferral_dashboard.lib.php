@@ -114,6 +114,10 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><th colspan="3">'.$langs->trans('LmdbReferralConversionFunnel').'</th></tr>';
+	$graphHtml = lmdbreferral_dashboard_try_dolgraph_funnel($funnel);
+	if ($graphHtml !== '') {
+		print '<tr class="oddeven"><td colspan="3">'.$graphHtml.'</td></tr>';
+	}
 	if (!empty($funnel['steps']) && is_array($funnel['steps'])) {
 		foreach ($funnel['steps'] as $step) {
 			$value = isset($step['value']) ? (int) $step['value'] : 0;
@@ -130,6 +134,68 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralSignedAmountTTC').'</td><td class="right">'.price((float) $funnel['amount_ttc']).'</td><td></td></tr>';
 	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralAverageBasketHT').'</td><td class="right">'.price((float) $funnel['average_basket_ht']).'</td><td></td></tr>';
 	print '</table>';
+}
+
+/**
+ * Try to render funnel with DolGraph, return empty string on unsupported environments.
+ *
+ * @param array<string,mixed> $funnel Funnel data
+ * @return string
+ */
+function lmdbreferral_dashboard_try_dolgraph_funnel(array $funnel)
+{
+	global $langs;
+
+	if (!file_exists(DOL_DOCUMENT_ROOT.'/core/class/dolgraph.class.php')) {
+		return '';
+	}
+	require_once DOL_DOCUMENT_ROOT.'/core/class/dolgraph.class.php';
+	if (!class_exists('DolGraph')) {
+		return '';
+	}
+
+	try {
+		$bufferLevel = ob_get_level();
+		$data = array();
+		if (!empty($funnel['steps']) && is_array($funnel['steps'])) {
+			foreach ($funnel['steps'] as $step) {
+				$data[] = array($langs->trans((string) $step['label']), isset($step['value']) ? (int) $step['value'] : 0);
+			}
+		}
+		if (empty($data)) {
+			return '';
+		}
+
+		$graph = new DolGraph();
+		if (method_exists($graph, 'SetData')) {
+			$graph->SetData($data);
+		}
+		if (method_exists($graph, 'SetType')) {
+			$graph->SetType(array('bars'));
+		}
+		if (method_exists($graph, 'SetWidth')) {
+			$graph->SetWidth('100%');
+		}
+		if (method_exists($graph, 'SetHeight')) {
+			$graph->SetHeight('180');
+		}
+		if (!method_exists($graph, 'draw') || !method_exists($graph, 'show')) {
+			return '';
+		}
+
+		ob_start();
+		$graph->draw('lmdbreferral_funnel', '');
+		$output = ob_get_clean();
+		$shown = $graph->show();
+
+		return (string) $output.(string) $shown;
+	} catch (Throwable $e) {
+		while (isset($bufferLevel) && ob_get_level() > $bufferLevel) {
+			ob_end_clean();
+		}
+
+		return '';
+	}
 }
 
 /**
