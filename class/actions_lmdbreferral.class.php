@@ -290,13 +290,12 @@ class ActionsLmdbReferral
 		print '</div>';
 
 		print '<script>
-		jQuery(function($) {
-			var $wrapper = $("#'.dol_escape_js($wrapperId).'");
-			var $row = $("#'.dol_escape_js($rowId).'");
-			var isCreate = '.($suffix === 'create' ? 'true' : 'false').';
-			if (!$wrapper.length || !$row.length) {
-				return;
-			}
+			jQuery(function($) {
+				var $wrapper = $("#'.dol_escape_js($wrapperId).'");
+				var $row = $("#'.dol_escape_js($rowId).'");
+				if (!$wrapper.length || !$row.length) {
+					return;
+				}
 
 			var salesLabel = "'.dol_escape_js($langs->trans('SalesRepresentatives')).'";
 			var expectedLabel = normalizeReferralLabel(salesLabel);
@@ -428,17 +427,15 @@ class ActionsLmdbReferral
 				return;
 			}
 
-			if (isCreate) {
-				var $nativeTable = $wrapper.nextAll("table.border.centpercent").first();
-				if (!$nativeTable.length) {
-					$nativeTable = $form.find("table.border.centpercent").not($wrapper.find("table")).first();
-				}
-				var $firstNativeRow = $nativeTable.children("tbody").children("tr").add($nativeTable.children("tr")).first();
-				if ($firstNativeRow.length) {
-					$firstNativeRow.before($row.detach());
-					$wrapper.remove();
-					return;
-				}
+			var $nativeTable = $wrapper.nextAll("table.border.centpercent").first();
+			if (!$nativeTable.length) {
+				$nativeTable = $form.find("table.border.centpercent").not($wrapper.find("table")).first();
+			}
+			var $firstNativeRow = $nativeTable.children("tbody").children("tr").add($nativeTable.children("tr")).first();
+			if ($firstNativeRow.length) {
+				$firstNativeRow.before($row.detach());
+				$wrapper.remove();
+				return;
 			}
 
 			var $nameRow = $form.find("#name").first().closest("tr");

@@ -13,6 +13,7 @@
 - Utilisation du réglage natif `MAIN_SIZE_SHORTLIST_LIMIT` pour le nombre de derniers événements affichés.
 - Ajout de la colonne `Référence` dans la liste des parrainages et suppression de la colonne d’action `Événements`.
 - Rendu natif des badges Multicompany et suppression du compteur redondant dans la colonne `Devis signé`.
+- Alignement du positionnement du champ `Parrain / apporteur` en édition tiers sur le formulaire de création.
 
 ## 1.0.0
 
