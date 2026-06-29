@@ -179,13 +179,22 @@ function lmdbreferral_dashboard_print_funnel_tunnel(array $funnel)
 	);
 
 	print '<div class="lmdbreferral-funnel-tunnel">';
+	$previousWidth = 100.0;
 	foreach ($steps as $index => $step) {
 		$percent = min(100, max(0, (float) $step['percent']));
-		$width = max(42, $percent);
+		$width = $index === 0 ? 100.0 : max(42, $percent);
+		$topWidth = min(100, max(42, $previousWidth));
+		$bottomWidth = min(100, max(42, $width));
+		$topLeft = (100 - $topWidth) / 2;
+		$topRight = $topLeft + $topWidth;
+		$bottomLeft = (100 - $bottomWidth) / 2;
+		$bottomRight = $bottomLeft + $bottomWidth;
+		$contentWidth = min($topWidth, $bottomWidth);
+		$clipPath = 'polygon('.price2num($topLeft, 'MS').'% 0, '.price2num($topRight, 'MS').'% 0, '.price2num($bottomRight, 'MS').'% 100%, '.price2num($bottomLeft, 'MS').'% 100%)';
 		$displayPercent = price((float) price2num($percent, 'MT'));
 		$class = $index === count($steps) - 1 ? ' lmdbreferral-funnel-stage-final' : '';
-		print '<div class="lmdbreferral-funnel-stage'.$class.'" style="width:'.price2num($width, 'MS').'%">';
-		print '<div class="lmdbreferral-funnel-stage-content">';
+		print '<div class="lmdbreferral-funnel-stage'.$class.'" style="-webkit-clip-path: '.$clipPath.'; clip-path: '.$clipPath.';">';
+		print '<div class="lmdbreferral-funnel-stage-content" style="width:'.price2num($contentWidth, 'MS').'%">';
 		print '<div class="lmdbreferral-funnel-stage-label">'.$langs->trans((string) $step['label']).'</div>';
 		print '<div class="lmdbreferral-funnel-stage-value">'.((int) $step['value']).'</div>';
 		print '<div class="lmdbreferral-funnel-stage-meta">'.$displayPercent.' %</div>';
@@ -194,6 +203,7 @@ function lmdbreferral_dashboard_print_funnel_tunnel(array $funnel)
 		}
 		print '</div>';
 		print '</div>';
+		$previousWidth = $bottomWidth;
 	}
 	print '</div>';
 }
