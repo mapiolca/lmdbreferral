@@ -11,6 +11,7 @@
 - Alignement du bloc Agenda sur la limite native de liste et déclaration de la résolution `lmdbreferrallink@lmdbreferral`.
 - Intégration des événements métier de parrainage dans l’Agenda natif via `ActionComm`, avec synchronisation des événements existants à l’activation.
 - Utilisation du réglage natif `MAIN_SIZE_SHORTLIST_LIMIT` pour le nombre de derniers événements affichés.
+- Ajout de la colonne `Référence` dans la liste des parrainages et suppression de la colonne d’action `Événements`.
 
 ## 1.0.0
 

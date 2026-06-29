@@ -40,7 +40,7 @@ $head = lmdbreferralLinkPrepareHead($object);
 print dol_get_fiche_head($head, 'agenda', $langs->trans('LmdbReferralLink'), -1, 'fa-handshake');
 
 $linkback = '<a href="'.dol_buildpath('/lmdbreferral/list.php', 1).'">'.$langs->trans('BackToList').'</a>';
-$morehtmlref = '<div class="refidno">'.$object->getLibStatut(1).'</div>';
+$morehtmlref = '';
 dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
 
 print dol_get_fiche_end();

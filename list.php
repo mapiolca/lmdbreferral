@@ -31,7 +31,7 @@ if (!$sortfield) {
 if (!$sortorder) {
 	$sortorder = 'DESC';
 }
-$allowedSort = array('t.date_creation', 't.referrer_type', 'referrer_name', 'filleul.nom', 't.status', 'signed_amount_ht', 'signed_amount_ttc', 't.entity');
+$allowedSort = array('t.ref', 't.date_creation', 't.referrer_type', 'referrer_name', 'filleul.nom', 't.status', 'signed_amount_ht', 'signed_amount_ttc', 't.entity');
 if (!in_array($sortfield, $allowedSort, true)) {
 	$sortfield = 't.date_creation';
 }
@@ -131,6 +131,7 @@ print '<div class="div-table-responsive">';
 print '<table class="liste centpercent">';
 print '<tr class="liste_titre_filter">';
 print '<td class="liste_titre maxwidthsearch center actioncolumn">'.$form->showFilterButtons('left').'</td>';
+print '<td></td>';
 print '<td>'.$form->selectarray('search_referrer_type', array('soc' => $langs->trans('ThirdParty'), 'user' => $langs->trans('User')), $searchReferrerType, 1, 0, 0, '', 0, 0, 0, '', 'minwidth100').'</td>';
 print '<td></td>';
 print '<td></td>';
@@ -152,11 +153,11 @@ if (function_exists('ajax_combobox')) {
 	print ajax_combobox('search_entity');
 }
 print '</td>';
-print '<td></td>';
 print '</tr>';
 
 print '<tr class="liste_titre">';
 print '<th class="liste_titre maxwidthsearch center actioncolumn"></th>';
+print_liste_field_titre('LmdbReferralReference', $_SERVER['PHP_SELF'], 't.ref', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre('LmdbReferralReferrer', $_SERVER['PHP_SELF'], 'referrer_name', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre('LmdbReferralReferrerType', $_SERVER['PHP_SELF'], 't.referrer_type', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre('LmdbReferralReferredThirdparty', $_SERVER['PHP_SELF'], 'filleul.nom', '', $param, '', $sortfield, $sortorder);
@@ -166,16 +167,19 @@ print_liste_field_titre('LmdbReferralSignedAmountHT', $_SERVER['PHP_SELF'], 'sig
 print_liste_field_titre('LmdbReferralSignedAmountTTC', $_SERVER['PHP_SELF'], 'signed_amount_ttc', '', $param, 'right', $sortfield, $sortorder);
 print_liste_field_titre('Status', $_SERVER['PHP_SELF'], 't.status', '', $param, 'center', $sortfield, $sortorder);
 print_liste_field_titre('Environment', $_SERVER['PHP_SELF'], 't.entity', '', $param, '', $sortfield, $sortorder);
-print '<th class="right">'.$langs->trans('Actions').'</th>';
 print '</tr>';
 
 $shown = 0;
 if ($resql) {
 	while (($obj = $db->fetch_object($resql)) && $shown < $limit) {
 		$shown++;
-		$referrerLabel = ($obj->referrer_type === 'soc') ? dol_escape_htmltag($obj->parrain_name) : dol_escape_htmltag(trim($obj->firstname.' '.$obj->lastname) ?: $obj->login);
+		$linkObject = new LmdbReferralLink($db);
+		$linkObject->id = (int) $obj->rowid;
+		$linkObject->rowid = (int) $obj->rowid;
+		$linkObject->ref = (string) $obj->ref;
 		print '<tr class="oddeven">';
 		print '<td class="center actioncolumn"></td>';
+		print '<td class="nowraponall">'.$linkObject->getNomUrl(1).'</td>';
 		print '<td>'.lmdbreferralGetReferrerNomUrl($obj->referrer_type, $obj->referrer_type === 'soc' ? (int) $obj->fk_soc_parrain : (int) $obj->fk_user_parrain).'</td>';
 		print '<td>'.$langs->trans($obj->referrer_type === 'soc' ? 'ThirdParty' : 'User').'</td>';
 		print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $obj->fk_soc_filleul.'">'.dol_escape_htmltag($obj->filleul_name).'</a></td>';
@@ -185,7 +189,6 @@ if ($resql) {
 		print '<td class="right">'.price((float) $obj->signed_amount_ttc).'</td>';
 		print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
 		print '<td>'.dol_escape_htmltag($obj->entity_label ? $obj->entity_label : $obj->entity).'</td>';
-		print '<td class="right"><a href="'.dol_buildpath('/lmdbreferral/card.php', 1).'?id='.(int) $obj->rowid.'">'.img_picto($langs->trans('View'), 'object_generic').'</a></td>';
 		print '</tr>';
 	}
 }

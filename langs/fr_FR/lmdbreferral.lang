@@ -4,6 +4,7 @@ ModuleLmdbReferralDescLong=Module de suivi des parrainages, des filleuls et des 
 LmdbReferralMenu=Parrainages
 LmdbReferralOverview=Vue d’ensemble des parrainages
 LmdbReferralList=Liste des parrainages
+LmdbReferralReference=Référence
 LmdbReferralSetup=Configuration Parrainage
 LmdbReferralCompatibility=Compatibilité Parrainage
 LmdbReferralAbout=À propos de Parrainage

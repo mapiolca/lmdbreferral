@@ -4,6 +4,7 @@ ModuleLmdbReferralDescLong=Referral tracking module for referrers, referred thir
 LmdbReferralMenu=Referrals
 LmdbReferralOverview=Referral overview
 LmdbReferralList=Referral list
+LmdbReferralReference=Reference
 LmdbReferralSetup=Referral setup
 LmdbReferralCompatibility=Referral compatibility
 LmdbReferralAbout=About Referral
