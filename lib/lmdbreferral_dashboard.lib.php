@@ -114,10 +114,9 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><th colspan="3">'.$langs->trans('LmdbReferralConversionFunnel').'</th></tr>';
-	$graphHtml = lmdbreferral_dashboard_try_dolgraph_funnel($funnel);
-	if ($graphHtml !== '') {
-		print '<tr class="oddeven"><td colspan="3">'.$graphHtml.'</td></tr>';
-	}
+	print '<tr class="oddeven"><td colspan="3">';
+	lmdbreferral_dashboard_print_funnel_tunnel($funnel);
+	print '</td></tr>';
 	if (!empty($funnel['steps']) && is_array($funnel['steps'])) {
 		foreach ($funnel['steps'] as $step) {
 			$value = isset($step['value']) ? (int) $step['value'] : 0;
@@ -137,65 +136,64 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 }
 
 /**
- * Try to render funnel with DolGraph, return empty string on unsupported environments.
+ * Print conversion funnel as a prospecting tunnel.
  *
  * @param array<string,mixed> $funnel Funnel data
- * @return string
+ * @return void
  */
-function lmdbreferral_dashboard_try_dolgraph_funnel(array $funnel)
+function lmdbreferral_dashboard_print_funnel_tunnel(array $funnel)
 {
 	global $langs;
 
-	if (!file_exists(DOL_DOCUMENT_ROOT.'/core/class/dolgraph.class.php')) {
-		return '';
-	}
-	require_once DOL_DOCUMENT_ROOT.'/core/class/dolgraph.class.php';
-	if (!class_exists('DolGraph')) {
-		return '';
-	}
-
-	try {
-		$bufferLevel = ob_get_level();
-		$data = array();
-		if (!empty($funnel['steps']) && is_array($funnel['steps'])) {
-			foreach ($funnel['steps'] as $step) {
-				$data[] = array($langs->trans((string) $step['label']), isset($step['value']) ? (int) $step['value'] : 0);
+	$base = 0;
+	$steps = array();
+	if (!empty($funnel['steps']) && is_array($funnel['steps'])) {
+		foreach ($funnel['steps'] as $step) {
+			$key = isset($step['key']) ? (string) $step['key'] : '';
+			$value = isset($step['value']) ? (int) $step['value'] : 0;
+			$percent = isset($step['percent']) ? (float) $step['percent'] : 0.0;
+			if ($key === 'total_referred') {
+				$base = $value;
 			}
+			$steps[] = array(
+				'label' => isset($step['label']) ? (string) $step['label'] : '',
+				'value' => $value,
+				'percent' => $percent,
+				'amount_ht' => null,
+			);
 		}
-		if (empty($data)) {
-			return '';
-		}
-
-		$graph = new DolGraph();
-		if (method_exists($graph, 'SetData')) {
-			$graph->SetData($data);
-		}
-		if (method_exists($graph, 'SetType')) {
-			$graph->SetType(array('bars'));
-		}
-		if (method_exists($graph, 'SetWidth')) {
-			$graph->SetWidth('100%');
-		}
-		if (method_exists($graph, 'SetHeight')) {
-			$graph->SetHeight('180');
-		}
-		if (!method_exists($graph, 'draw') || !method_exists($graph, 'show')) {
-			return '';
-		}
-
-		ob_start();
-		$graph->draw('lmdbreferral_funnel', '');
-		$output = ob_get_clean();
-		$shown = $graph->show();
-
-		return (string) $output.(string) $shown;
-	} catch (Throwable $e) {
-		while (isset($bufferLevel) && ob_get_level() > $bufferLevel) {
-			ob_end_clean();
-		}
-
-		return '';
 	}
+
+	if ($base <= 0 && !empty($steps[0]['value'])) {
+		$base = (int) $steps[0]['value'];
+	}
+	$signedPropals = isset($funnel['signed_propals']) ? (int) $funnel['signed_propals'] : 0;
+	$amountHt = isset($funnel['amount_ht']) ? (float) $funnel['amount_ht'] : 0.0;
+	$signedPercent = $base > 0 ? ($signedPropals / $base * 100) : 0.0;
+	$steps[] = array(
+		'label' => 'LmdbReferralGeneratedCAHT',
+		'value' => $signedPropals,
+		'percent' => $signedPercent,
+		'amount_ht' => $amountHt,
+	);
+
+	print '<div class="lmdbreferral-funnel-tunnel">';
+	foreach ($steps as $index => $step) {
+		$percent = min(100, max(0, (float) $step['percent']));
+		$width = max(42, $percent);
+		$class = $index === count($steps) - 1 ? ' lmdbreferral-funnel-stage-final' : '';
+		print '<div class="lmdbreferral-funnel-stage'.$class.'" style="width:'.price2num($width, 'MS').'%">';
+		print '<div class="lmdbreferral-funnel-stage-content">';
+		print '<div class="lmdbreferral-funnel-stage-label">'.$langs->trans((string) $step['label']).'</div>';
+		print '<div class="lmdbreferral-funnel-stage-value">'.((int) $step['value']).'</div>';
+		print '<div class="lmdbreferral-funnel-stage-meta">'.price($percent).' %</div>';
+		if ($step['amount_ht'] !== null) {
+			print '<div class="lmdbreferral-funnel-stage-amount">'.price((float) $step['amount_ht']).' '.$langs->trans('HT').'</div>';
+		}
+		print '</div>';
+		print '</div>';
+	}
+	print '</div>';
 }
 
 /**

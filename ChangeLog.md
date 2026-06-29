@@ -24,6 +24,7 @@
 - Alignement des boutons de l’édition inline `Parrain / apporteur` sur le pattern natif `smallpaddingimp nomargingtop nomarginbottom button`.
 - Fusion de la colonne de sélection avec la colonne de recherche native et suppression des compteurs manuels dans les titres de listes.
 - Refonte de la vue d’ensemble en dashboard commercial avec filtres, KPI, entonnoir, graphe étoile SVG, classements, relances et statistiques centralisées réutilisées par l’API.
+- Remplacement du rendu générique de l’entonnoir par un tunnel de conversion visuel inspiré du tunnel de prospection Dolibarr.
 
 ## 1.0.0
 
