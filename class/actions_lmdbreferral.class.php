@@ -221,24 +221,70 @@ class ActionsLmdbReferral
 			return 0;
 		}
 		$langs->load('lmdbreferral@lmdbreferral');
-		$links = (new LmdbReferralService($this->db))->fetchActiveByFilleul((int) $object->id);
+		$langs->load('commercial');
+		$service = new LmdbReferralService($this->db);
+		$links = $service->fetchActiveByFilleul((int) $object->id);
 		if (empty($links)) {
 			return 0;
 		}
 
 		$link = $links[0];
+		$wrapperId = 'lmdbreferral-referrer-view-wrapper-'.((int) $object->id);
+		$rowId = 'lmdbreferral-referrer-view-row-'.((int) $object->id);
+
+		print '<div id="'.$wrapperId.'" class="lmdbreferral-referrer-view-wrapper">';
 		print '<div class="underbanner clearboth"></div>';
 		print '<table class="border tableforfield centpercent">';
-		print '<tr><td class="titlefieldmiddle">'.$langs->trans('LmdbReferralReferrer').'</td><td>';
+		print '<tr id="'.$rowId.'" class="lmdbreferral-referrer-view-row"><td class="titlefieldmiddle">'.$langs->trans('LmdbReferralReferrer').'</td><td>';
 		print lmdbreferralGetReferrerNomUrl($link->referrer_type, $link->referrer_type === 'soc' ? (int) $link->fk_soc_parrain : (int) $link->fk_user_parrain);
 		if (lmdbreferralCanDo($user, 'write', $object)) {
 			print ' &nbsp; <a class="editfielda" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=edit&token='.newToken().'">'.img_edit($langs->trans('Modify'), 1).'</a>';
 		}
-		if (lmdbreferralCanDo($user, 'cancel', $object) && !(new LmdbReferralService($this->db))->isLockedBySignedProposal((int) $object->id)) {
+		if (lmdbreferralCanDo($user, 'cancel', $object) && !$service->isLockedBySignedProposal((int) $object->id)) {
 			print ' &nbsp; <a class="reposition" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=lmdbreferral_cancel_referrer&token='.newToken().'">'.img_delete($langs->trans('LmdbReferralRemoveReferrer')).'</a>';
 		}
 		print '</td></tr>';
 		print '</table>';
+		print '</div>';
+
+		print '<script>
+		jQuery(function($) {
+			var $wrapper = $("#'.dol_escape_js($wrapperId).'");
+			var $row = $("#'.dol_escape_js($rowId).'");
+			if (!$wrapper.length || !$row.length) {
+				return;
+			}
+
+			var salesLabel = "'.dol_escape_js($langs->trans('SalesRepresentatives')).'";
+			var expectedLabel = normalizeReferralLabel(salesLabel);
+			var $target = $();
+
+			function normalizeReferralLabel(value) {
+				return $.trim(value).replace(/[:\\s]+$/, "").toLowerCase();
+			}
+
+			$("table.tableforfield").each(function() {
+				var $table = $(this);
+				var $rows = $table.children("tbody").children("tr").add($table.children("tr"));
+				$rows.each(function() {
+					var $candidate = $(this);
+					var label = normalizeReferralLabel($candidate.children("td, th").first().text());
+					if (label && expectedLabel && label === expectedLabel) {
+						$target = $candidate;
+						return false;
+					}
+				});
+				if ($target.length) {
+					return false;
+				}
+			});
+
+			if ($target.length) {
+				$target.after($row.detach());
+				$wrapper.remove();
+			}
+		});
+		</script>';
 
 		return 0;
 	}

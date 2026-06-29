@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Repositionnement du champ `Parrain / apporteur` dans les formulaires tiers, sous `Environnement` quand la ligne existe, sinon près du nom du tiers.
+- Déplacement du bloc `Parrain / apporteur` de la fiche tiers sous la ligne native `Commerciaux`.
 
 ## 1.0.0
 
