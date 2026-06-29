@@ -10,6 +10,7 @@
 - Refonte de `card.php` en fiche native avec onglets `Fiche`, `Fichiers joints` et `Événements/Agenda`.
 - Alignement du bloc Agenda sur la limite native de liste et déclaration de la résolution `lmdbreferrallink@lmdbreferral`.
 - Intégration des événements métier de parrainage dans l’Agenda natif via `ActionComm`, avec synchronisation des événements existants à l’activation.
+- Utilisation du réglage natif `MAIN_SIZE_SHORTLIST_LIMIT` pour le nombre de derniers événements affichés.
 
 ## 1.0.0
 

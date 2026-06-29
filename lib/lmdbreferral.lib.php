@@ -111,9 +111,7 @@ function lmdbreferralGetLinkDocumentDir($object)
  */
 function lmdbreferralGetAgendaBlockLimit()
 {
-	global $conf;
-
-	$limit = !empty($conf->liste_limit) ? (int) $conf->liste_limit : 0;
+	$limit = getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT');
 	if ($limit <= 0) {
 		$limit = 10;
 	}
