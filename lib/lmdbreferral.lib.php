@@ -363,3 +363,43 @@ function lmdbreferralPrintNoRecordRow($colspan)
 	print '<span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span>';
 	print '</td></tr>';
 }
+
+/**
+ * Return the native Multicompany entity badge markup.
+ *
+ * @param int    $entityId    Entity id
+ * @param string $entityLabel Entity label
+ * @return string
+ */
+function lmdbreferralMulticompanyEntityBadge($entityId, $entityLabel = '')
+{
+	$label = $entityLabel !== '' ? $entityLabel : (string) $entityId;
+
+	return '<div class="refidno multicompany-entity-card-container">'
+		.'<span class="fa fa-globe"></span>'
+		.'<span class="multiselect-selected-title-text">'.dol_escape_htmltag($label).'</span>'
+		.'</div>';
+}
+
+/**
+ * Return the signed proposal references without the redundant count badge.
+ *
+ * @param int         $signedCount Number of signed proposals
+ * @param string|null $propalRefs  Proposal refs
+ * @return string
+ */
+function lmdbreferralFormatSignedProposalRefs($signedCount, $propalRefs)
+{
+	global $langs;
+
+	if ((int) $signedCount <= 0) {
+		return '<span class="opacitymedium">'.$langs->trans('No').'</span>';
+	}
+
+	$refs = trim((string) $propalRefs);
+	if ($refs === '') {
+		return '<span class="opacitymedium">'.$langs->trans('Yes').'</span>';
+	}
+
+	return dol_escape_htmltag($refs);
+}

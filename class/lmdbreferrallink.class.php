@@ -33,6 +33,9 @@ class LmdbReferralLink extends CommonObject
 	public $fk_project = 0;
 	public $socid = 0;
 	public $note_private;
+	public $referrer_label = '';
+	public $filleul_label = '';
+	public $entity_label = '';
 
 	public const STATUS_ACTIVE = 1;
 	public const STATUS_CANCELLED = 9;
@@ -256,9 +259,30 @@ class LmdbReferralLink extends CommonObject
 	 */
 	public function getNomUrl($withpicto = 0)
 	{
+		global $langs;
+
+		$langs->loadLangs(array('lmdbreferral@lmdbreferral'));
+
 		$label = $this->ref ? $this->ref : 'Referral';
 		$url = dol_buildpath('/lmdbreferral/card.php', 1).'?id='.(int) $this->id;
-		$link = '<a href="'.$url.'">'.dol_escape_htmltag($label).'</a>';
+		$tooltip = array($langs->trans('LmdbReferralLink').': '.$label);
+		if ($this->referrer_label !== '') {
+			$tooltip[] = $langs->trans('LmdbReferralReferrer').': '.$this->referrer_label;
+		}
+		if ($this->filleul_label !== '') {
+			$tooltip[] = $langs->trans('LmdbReferralReferredThirdparty').': '.$this->filleul_label;
+		}
+		if (!empty($this->date_creation)) {
+			$tooltip[] = $langs->trans('LmdbReferralAttachedDate').': '.dol_print_date(is_numeric($this->date_creation) ? (int) $this->date_creation : $this->db->jdate($this->date_creation), 'dayhour');
+		}
+		if (!empty($this->status)) {
+			$tooltip[] = $langs->trans('Status').': '.$this->getLibStatut(0);
+		}
+		if ($this->entity_label !== '' || !empty($this->entity)) {
+			$tooltip[] = $langs->trans('Environment').': '.($this->entity_label !== '' ? $this->entity_label : (string) $this->entity);
+		}
+
+		$link = '<a href="'.dol_escape_htmltag($url).'" class="classfortooltip" title="'.dol_escape_htmltag(implode("\n", $tooltip)).'">'.dol_escape_htmltag($label).'</a>';
 		if ($withpicto) {
 			$link = img_picto('', $this->picto, 'class="pictofixedwidth"').$link;
 		}

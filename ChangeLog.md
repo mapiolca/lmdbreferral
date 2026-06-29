@@ -12,6 +12,7 @@
 - Intégration des événements métier de parrainage dans l’Agenda natif via `ActionComm`, avec synchronisation des événements existants à l’activation.
 - Utilisation du réglage natif `MAIN_SIZE_SHORTLIST_LIMIT` pour le nombre de derniers événements affichés.
 - Ajout de la colonne `Référence` dans la liste des parrainages et suppression de la colonne d’action `Événements`.
+- Rendu natif des badges Multicompany et suppression du compteur redondant dans la colonne `Devis signé`.
 
 ## 1.0.0
 

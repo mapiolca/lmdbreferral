@@ -135,11 +135,11 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra)
 			print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $obj->filleul_id.'">'.dol_escape_htmltag($obj->filleul_name).'</a></td>';
 			print '<td>'.dol_print_date($db->jdate($obj->date_creation), 'day').'</td>';
 			print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
-			print '<td>'.((int) $obj->signed_count > 0 ? dol_escape_htmltag($obj->propal_refs).' <span class="badge">'.((int) $obj->signed_count).'</span>' : '<span class="opacitymedium">'.$langs->trans('No').'</span>').'</td>';
+			print '<td>'.lmdbreferralFormatSignedProposalRefs((int) $obj->signed_count, $obj->propal_refs).'</td>';
 			print '<td>'.($obj->date_signature ? dol_print_date($db->jdate($obj->date_signature), 'day') : '').'</td>';
 			print '<td class="right">'.price((float) $obj->amount_ht).'</td>';
 			print '<td class="right">'.price((float) $obj->amount_ttc).'</td>';
-			print '<td>'.dol_escape_htmltag($obj->entity_label ? $obj->entity_label : $obj->entity).'</td>';
+			print '<td align="center">'.lmdbreferralMulticompanyEntityBadge((int) $obj->entity, $obj->entity_label ? (string) $obj->entity_label : (string) $obj->entity).'</td>';
 			print '</tr>';
 		}
 	}

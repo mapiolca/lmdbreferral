@@ -173,10 +173,25 @@ $shown = 0;
 if ($resql) {
 	while (($obj = $db->fetch_object($resql)) && $shown < $limit) {
 		$shown++;
+		$referrerLabel = ($obj->referrer_type === 'soc') ? (string) $obj->parrain_name : trim((string) $obj->firstname.' '.(string) $obj->lastname);
+		if ($referrerLabel === '') {
+			$referrerLabel = (string) $obj->login;
+		}
+		$entityLabel = $obj->entity_label ? (string) $obj->entity_label : (string) $obj->entity;
 		$linkObject = new LmdbReferralLink($db);
 		$linkObject->id = (int) $obj->rowid;
 		$linkObject->rowid = (int) $obj->rowid;
 		$linkObject->ref = (string) $obj->ref;
+		$linkObject->referrer_type = (string) $obj->referrer_type;
+		$linkObject->fk_soc_parrain = (int) $obj->fk_soc_parrain;
+		$linkObject->fk_user_parrain = (int) $obj->fk_user_parrain;
+		$linkObject->fk_soc_filleul = (int) $obj->fk_soc_filleul;
+		$linkObject->status = (int) $obj->status;
+		$linkObject->date_creation = $obj->date_creation;
+		$linkObject->entity = (int) $obj->entity;
+		$linkObject->referrer_label = $referrerLabel;
+		$linkObject->filleul_label = (string) $obj->filleul_name;
+		$linkObject->entity_label = $entityLabel;
 		print '<tr class="oddeven">';
 		print '<td class="center actioncolumn"></td>';
 		print '<td class="nowraponall">'.$linkObject->getNomUrl(1).'</td>';
@@ -184,11 +199,11 @@ if ($resql) {
 		print '<td>'.$langs->trans($obj->referrer_type === 'soc' ? 'ThirdParty' : 'User').'</td>';
 		print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $obj->fk_soc_filleul.'">'.dol_escape_htmltag($obj->filleul_name).'</a></td>';
 		print '<td>'.dol_print_date($db->jdate($obj->date_creation), 'day').'</td>';
-		print '<td>'.((int) $obj->signed_count > 0 ? dol_escape_htmltag($obj->propal_refs).' <span class="badge">'.((int) $obj->signed_count).'</span>' : '<span class="opacitymedium">'.$langs->trans('No').'</span>').'</td>';
+		print '<td>'.lmdbreferralFormatSignedProposalRefs((int) $obj->signed_count, $obj->propal_refs).'</td>';
 		print '<td class="right">'.price((float) $obj->signed_amount_ht).'</td>';
 		print '<td class="right">'.price((float) $obj->signed_amount_ttc).'</td>';
 		print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
-		print '<td>'.dol_escape_htmltag($obj->entity_label ? $obj->entity_label : $obj->entity).'</td>';
+		print '<td align="center">'.lmdbreferralMulticompanyEntityBadge((int) $obj->entity, $entityLabel).'</td>';
 		print '</tr>';
 	}
 }
