@@ -99,47 +99,47 @@ class modLmdbReferral extends DolibarrModules
 		$this->rights = array();
 		$r = 0;
 		$r++;
-		$this->rights[$r][0] = $this->numero + 1;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionRead';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'read';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 2;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionWrite';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'write';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 3;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionCancel';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'cancel';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 4;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionAll';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'all';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 5;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionOwn';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'own';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 6;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionExport';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'export';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 7;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionApi';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'api';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 8;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionSetup';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'setup';
 		$r++;
-		$this->rights[$r][0] = $this->numero + 9;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'LmdbReferralPermissionDelete';
 		$this->rights[$r][4] = 'referral';
 		$this->rights[$r][5] = 'delete';
@@ -257,6 +257,10 @@ class modLmdbReferral extends DolibarrModules
 	{
 		global $user;
 
+		if ($this->migrateLegacyPermissionAssignments() < 0) {
+			return -1;
+		}
+
 		$result = $this->_load_tables('/lmdbreferral/sql/');
 		if ($result < 0) {
 			return -1;
@@ -282,7 +286,18 @@ class modLmdbReferral extends DolibarrModules
 			}
 		}
 
-		return $this->_init(array(), $options);
+		$result = $this->_init(array(), $options);
+		if ($result < 0) {
+			return -1;
+		}
+		if ($this->migrateLegacyPermissionAssignments() < 0) {
+			return -1;
+		}
+		if ($this->removeLegacyPermissionDefinitions() < 0) {
+			return -1;
+		}
+
+		return $result;
 	}
 
 	/**
@@ -380,5 +395,116 @@ class modLmdbReferral extends DolibarrModules
 		}
 
 		dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', json_encode($current), 'chaine', 0, '', (int) $conf->entity);
+	}
+
+	/**
+	 * Return legacy-to-current permission id mapping.
+	 *
+	 * @return array<int,int>
+	 */
+	private function getLegacyPermissionMap()
+	{
+		$map = array();
+		for ($r = 1; $r <= 9; $r++) {
+			$map[$this->numero + $r] = $this->numero * 100 + $r;
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Preserve user and group assignments created with the previous permission numbering.
+	 *
+	 * @return int
+	 */
+	private function migrateLegacyPermissionAssignments()
+	{
+		foreach ($this->getLegacyPermissionMap() as $oldId => $newId) {
+			if ($this->copyPermissionAssignments('user_rights', 'fk_user', (int) $oldId, (int) $newId) < 0) {
+				return -1;
+			}
+			if ($this->copyPermissionAssignments('usergroup_rights', 'fk_usergroup', (int) $oldId, (int) $newId) < 0) {
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Remove obsolete permission definitions after assignments have been copied.
+	 *
+	 * @return int
+	 */
+	private function removeLegacyPermissionDefinitions()
+	{
+		$legacyIds = array_keys($this->getLegacyPermissionMap());
+		if (empty($legacyIds)) {
+			return 1;
+		}
+
+		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'rights_def';
+		$sql .= ' WHERE module = \''.$this->db->escape($this->rights_class).'\'';
+		$sql .= ' AND id IN ('.implode(',', array_map('intval', $legacyIds)).')';
+		if (!$this->db->query($sql)) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Copy permission assignments between permission ids without creating duplicates.
+	 *
+	 * @param string $table        Core assignment table without prefix
+	 * @param string $subjectField User or group foreign key field
+	 * @param int    $oldId        Legacy permission id
+	 * @param int    $newId        Current permission id
+	 * @return int
+	 */
+	private function copyPermissionAssignments($table, $subjectField, $oldId, $newId)
+	{
+		$hasEntity = $this->tableFieldExists($table, 'entity');
+		$columns = ($hasEntity ? 'entity, ' : '').$subjectField.', fk_id';
+		$select = ($hasEntity ? 'src.entity, ' : '').'src.'.$subjectField.', '.((int) $newId);
+
+		$sql = 'INSERT INTO '.MAIN_DB_PREFIX.$table.' ('.$columns.')';
+		$sql .= ' SELECT '.$select;
+		$sql .= ' FROM '.MAIN_DB_PREFIX.$table.' as src';
+		$sql .= ' WHERE src.fk_id = '.((int) $oldId);
+		$sql .= ' AND NOT EXISTS (';
+		$sql .= 'SELECT 1 FROM '.MAIN_DB_PREFIX.$table.' as dest';
+		$sql .= ' WHERE dest.fk_id = '.((int) $newId);
+		$sql .= ' AND dest.'.$subjectField.' = src.'.$subjectField;
+		if ($hasEntity) {
+			$sql .= ' AND dest.entity = src.entity';
+		}
+		$sql .= ')';
+
+		if (!$this->db->query($sql)) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Tell if a core table field exists.
+	 *
+	 * @param string $table Core table without prefix
+	 * @param string $field Field name
+	 * @return bool
+	 */
+	private function tableFieldExists($table, $field)
+	{
+		$sql = 'SHOW COLUMNS FROM '.MAIN_DB_PREFIX.$table." LIKE '".$this->db->escape($field)."'";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return false;
+		}
+
+		return $this->db->num_rows($resql) > 0;
 	}
 }
