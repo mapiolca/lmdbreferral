@@ -121,9 +121,10 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 		foreach ($funnel['steps'] as $step) {
 			$value = isset($step['value']) ? (int) $step['value'] : 0;
 			$percent = isset($step['percent']) ? (float) $step['percent'] : 0.0;
+			$displayPercent = price((float) price2num($percent, 'MT'));
 			print '<tr class="oddeven">';
 			print '<td class="titlefield">'.$langs->trans((string) $step['label']).'</td>';
-			print '<td class="right maxwidth100">'.((int) $value).' <span class="opacitymedium">('.price($percent).' %)</span></td>';
+			print '<td class="right maxwidth100">'.((int) $value).' <span class="opacitymedium">('.$displayPercent.' %)</span></td>';
 			print '<td><div class="lmdbreferral-funnel-bar"><span style="width:'.min(100, max(0, $percent)).'%"></span></div></td>';
 			print '</tr>';
 		}
@@ -181,12 +182,13 @@ function lmdbreferral_dashboard_print_funnel_tunnel(array $funnel)
 	foreach ($steps as $index => $step) {
 		$percent = min(100, max(0, (float) $step['percent']));
 		$width = max(42, $percent);
+		$displayPercent = price((float) price2num($percent, 'MT'));
 		$class = $index === count($steps) - 1 ? ' lmdbreferral-funnel-stage-final' : '';
 		print '<div class="lmdbreferral-funnel-stage'.$class.'" style="width:'.price2num($width, 'MS').'%">';
 		print '<div class="lmdbreferral-funnel-stage-content">';
 		print '<div class="lmdbreferral-funnel-stage-label">'.$langs->trans((string) $step['label']).'</div>';
 		print '<div class="lmdbreferral-funnel-stage-value">'.((int) $step['value']).'</div>';
-		print '<div class="lmdbreferral-funnel-stage-meta">'.price($percent).' %</div>';
+		print '<div class="lmdbreferral-funnel-stage-meta">'.$displayPercent.' %</div>';
 		if ($step['amount_ht'] !== null) {
 			print '<div class="lmdbreferral-funnel-stage-amount">'.price((float) $step['amount_ht']).' '.$langs->trans('HT').'</div>';
 		}

@@ -59,7 +59,16 @@ if (!empty($graph['center'])) {
 	}
 }
 
-llxHeader('', $langs->trans('LmdbReferralOverview'), '', '', 0, 0, array(), array('/lmdbreferral/css/lmdbreferral_dashboard.css'));
+$dashboardCss = '/lmdbreferral/css/lmdbreferral_dashboard.css';
+$dashboardCssFile = dol_buildpath($dashboardCss, 0);
+if ($dashboardCssFile !== '' && is_readable($dashboardCssFile)) {
+	$dashboardCssMtime = filemtime($dashboardCssFile);
+	if ($dashboardCssMtime !== false) {
+		$dashboardCss .= '?v='.(int) $dashboardCssMtime;
+	}
+}
+
+llxHeader('', $langs->trans('LmdbReferralOverview'), '', '', 0, 0, array(), array($dashboardCss));
 print load_fiche_titre($langs->trans('LmdbReferralOverview'), '', 'fa-handshake');
 
 lmdbreferral_dashboard_print_filters($form, $filters, $entityOptions, $referrerOptions);
