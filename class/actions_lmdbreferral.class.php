@@ -131,7 +131,7 @@ class ActionsLmdbReferral
 		global $conf;
 
 		$elementType = isset($parameters['elementType']) ? (string) $parameters['elementType'] : '';
-		if (!in_array($elementType, array('lmdbreferrallink', 'lmdbreferrallink@lmdbreferral'), true)) {
+		if (!in_array($elementType, array('lmdbreferrallink', 'lmdbreferrallink@lmdbreferral', 'lmdbreferral_lmdbreferrallink'), true)) {
 			return 0;
 		}
 

@@ -114,6 +114,9 @@ if ($upload_dir !== '') {
 	print '<div class="opacitymedium">'.$langs->trans('NotAvailable').'</div>';
 }
 
+print '<br>';
+$form->showLinkedObjectBlock($object, '');
+
 print '</div>';
 print '<div class="fichehalfright">';
 $canReadAgenda = !empty($user->admin) || (method_exists($user, 'hasRight') && ($user->hasRight('agenda', 'myactions', 'read') || $user->hasRight('agenda', 'allactions', 'read')));
