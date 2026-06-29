@@ -265,27 +265,29 @@ class LmdbReferralLink extends CommonObject
 
 		$label = $this->ref ? $this->ref : 'Referral';
 		$url = dol_buildpath('/lmdbreferral/card.php', 1).'?id='.(int) $this->id;
-		$tooltip = array($langs->trans('LmdbReferralLink').': '.$label);
+		$tooltip = '<b>'.dol_escape_htmltag($langs->trans('LmdbReferralLink')).'</b>';
+		$tooltip .= '<br><b>'.dol_escape_htmltag($langs->trans('Ref')).':</b> '.dol_escape_htmltag($label);
 		if ($this->referrer_label !== '') {
-			$tooltip[] = $langs->trans('LmdbReferralReferrer').': '.$this->referrer_label;
+			$tooltip .= '<br><b>'.dol_escape_htmltag($langs->trans('LmdbReferralReferrer')).':</b> '.dol_escape_htmltag($this->referrer_label);
 		}
 		if ($this->filleul_label !== '') {
-			$tooltip[] = $langs->trans('LmdbReferralReferredThirdparty').': '.$this->filleul_label;
+			$tooltip .= '<br><b>'.dol_escape_htmltag($langs->trans('LmdbReferralReferredThirdparty')).':</b> '.dol_escape_htmltag($this->filleul_label);
 		}
 		if (!empty($this->date_creation)) {
-			$tooltip[] = $langs->trans('LmdbReferralAttachedDate').': '.dol_print_date(is_numeric($this->date_creation) ? (int) $this->date_creation : $this->db->jdate($this->date_creation), 'dayhour');
+			$tooltip .= '<br><b>'.dol_escape_htmltag($langs->trans('LmdbReferralAttachedDate')).':</b> '.dol_escape_htmltag(dol_print_date(is_numeric($this->date_creation) ? (int) $this->date_creation : $this->db->jdate($this->date_creation), 'dayhour'));
 		}
 		if (!empty($this->status)) {
-			$tooltip[] = $langs->trans('Status').': '.$this->getLibStatut(0);
+			$tooltip .= '<br><b>'.dol_escape_htmltag($langs->trans('Status')).':</b> '.dol_escape_htmltag($this->getLibStatut(0));
 		}
 		if ($this->entity_label !== '' || !empty($this->entity)) {
-			$tooltip[] = $langs->trans('Environment').': '.($this->entity_label !== '' ? $this->entity_label : (string) $this->entity);
+			$tooltip .= '<br><b>'.dol_escape_htmltag($langs->trans('Environment')).':</b> '.dol_escape_htmltag($this->entity_label !== '' ? $this->entity_label : (string) $this->entity);
 		}
 
-		$link = '<a href="'.dol_escape_htmltag($url).'" class="classfortooltip" title="'.dol_escape_htmltag(implode("\n", $tooltip)).'">'.dol_escape_htmltag($label).'</a>';
+		$link = '<a href="'.dol_escape_htmltag($url).'" class="classfortooltip" title="'.dolPrintHTMLForAttribute($tooltip).'">';
 		if ($withpicto) {
-			$link = img_picto('', $this->picto, 'class="pictofixedwidth"').$link;
+			$link .= img_picto('', $this->picto, 'class="pictofixedwidth"');
 		}
+		$link .= dol_escape_htmltag($label).'</a>';
 
 		return $link;
 	}
