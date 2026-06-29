@@ -253,6 +253,7 @@ class ActionsLmdbReferral
 			return 0;
 		}
 		$langs->load('lmdbreferral@lmdbreferral');
+		$langs->load('commercial');
 		$selected = $this->getActiveReferrerValue((int) $object->id);
 		if (GETPOSTISSET('lmdbreferral_referrer')) {
 			$selected = GETPOST('lmdbreferral_referrer', 'alphanohtml');
@@ -425,6 +426,7 @@ class ActionsLmdbReferral
 
 		print '<script>
 		jQuery(function($) {
+			var isEditContext = '.($excludeSocid > 0 ? 'true' : 'false').';
 			var $wrapper = $("#'.dol_escape_js($wrapperId).'");
 			var $row = $("#'.dol_escape_js($rowId).'");
 			if (!$wrapper.length || !$row.length) {
@@ -439,7 +441,55 @@ class ActionsLmdbReferral
 				return;
 			}
 
+			function normalizeReferralLabel(value) {
+				return $.trim(value).replace(/[:\\s]+$/, "").toLowerCase();
+			}
+
 			var $target = $();
+			if (isEditContext) {
+				var salesLabels = [
+					"'.dol_escape_js($langs->trans('AssignSalesRepresentatives')).'",
+					"'.dol_escape_js($langs->trans('SalesRepresentatives')).'",
+					"'.dol_escape_js($langs->trans('SalesRepresentative')).'",
+					"Assigner des commerciaux",
+					"Assign sales representatives"
+				];
+				$form.find("tr").each(function() {
+					var $candidate = $(this);
+					var label = normalizeReferralLabel($candidate.children("td, th").first().text());
+					for (var i = 0; i < salesLabels.length; i++) {
+						if (label && salesLabels[i] && label === normalizeReferralLabel(salesLabels[i])) {
+							$target = $candidate;
+							return false;
+						}
+					}
+					if (label.indexOf("commercial") !== -1 || label.indexOf("commerciaux") !== -1) {
+						$target = $candidate;
+						return false;
+					}
+				});
+
+				if (!$target.length) {
+					$form.find("select, input").filter(function() {
+						var attrName = String($(this).attr("name") || "");
+						var attrId = String($(this).attr("id") || "");
+						return attrName.indexOf("commercial") !== -1 || attrId.indexOf("commercial") !== -1;
+					}).each(function() {
+						var $tr = $(this).closest("tr");
+						if ($tr.length) {
+							$target = $tr;
+							return false;
+						}
+					});
+				}
+
+				if ($target.length) {
+					$target.after($row.detach());
+					$wrapper.remove();
+					return;
+				}
+			}
+
 			$form.find("select[name=entity], input[name=entity]:not([type=hidden]), #entity, #selectentity").each(function() {
 				var $tr = $(this).closest("tr");
 				if ($tr.length) {

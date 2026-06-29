@@ -18,6 +18,8 @@
 - Ajout du bloc natif `Objets liés` sur la fiche lien et liaison automatique des devis signés.
 - Uniformisation des listes de parrainages avec filtres natifs, tri, alignements, cases à cocher et annulation en masse.
 - Ajout de l’édition indépendante du champ `Parrain / apporteur` depuis la fiche tiers en consultation.
+- Déplacement du champ `Parrain / apporteur` en édition tiers sous `Assigner des commerciaux` dans la zone `Plus`.
+- Alignement de `agenda.php` sur une liste Agenda native longue avec audit `Créé par` / `Modifié par`, colonne `Objet lié`, filtres, tri, pagination et limite `$conf->liste_limit`.
 
 ## 1.0.0
 
