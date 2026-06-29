@@ -315,8 +315,8 @@ class ActionsLmdbReferral
 			print '<input type="hidden" name="token" value="'.newToken().'">';
 			print '<input type="hidden" name="action" value="lmdbreferral_save_referrer">';
 			print lmdbreferralSelectReferrer('lmdbreferral_referrer', $selected, (int) $object->id);
-			print ' <input type="submit" class="button small" value="'.$langs->trans('Save').'">';
-			print ' <a class="button button-cancel small" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'">'.$langs->trans('Cancel').'</a>';
+			print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans('Save').'">';
+			print ' <a class="button smallpaddingimp" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'">'.$langs->trans('Cancel').'</a>';
 			print '</form>';
 		} elseif ($link) {
 			print lmdbreferralGetReferrerNomUrl($link->referrer_type, $link->referrer_type === 'soc' ? (int) $link->fk_soc_parrain : (int) $link->fk_user_parrain);
