@@ -26,6 +26,7 @@
 - Refonte de la vue d’ensemble en dashboard commercial avec filtres, KPI, entonnoir, graphe étoile SVG, classements, relances et statistiques centralisées réutilisées par l’API.
 - Remplacement du rendu générique de l’entonnoir par un tunnel de conversion visuel inspiré du tunnel de prospection Dolibarr.
 - Raccordement des angles des segments du tunnel de conversion pour que chaque étape prolonge exactement la précédente.
+- Ajout d’un droit de suppression des parrainages non transformés, avec libellés de permissions traduits en français et anglais.
 
 ## 1.0.0
 

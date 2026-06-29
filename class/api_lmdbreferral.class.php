@@ -136,7 +136,7 @@ class LmdbReferralApi extends DolibarrApi
 	}
 
 	/**
-	 * Cancel referral link.
+	 * Delete referral link if it has not been transformed.
 	 *
 	 * @url DELETE /referrals/{id}
 	 *
@@ -144,6 +144,25 @@ class LmdbReferralApi extends DolibarrApi
 	 * @return array<string,string>
 	 */
 	public function deleteReferral($id)
+	{
+		$this->checkPermission('delete');
+		$service = new LmdbReferralService($this->db);
+		if ($service->deleteLink((int) $id, DolibarrApiAccess::$user) < 0) {
+			throw new RestException(400, $service->error);
+		}
+
+		return array('success' => 'ok');
+	}
+
+	/**
+	 * Cancel referral link.
+	 *
+	 * @url POST /referrals/{id}/cancel
+	 *
+	 * @param int $id Link id
+	 * @return array<string,string>
+	 */
+	public function cancelReferral($id)
 	{
 		$this->checkPermission('cancel');
 		$service = new LmdbReferralService($this->db);

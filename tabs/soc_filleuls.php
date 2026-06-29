@@ -116,6 +116,18 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra, $currentId)
 		header('Location: '.$_SERVER['PHP_SELF'].'?'.ltrim($param, '&'));
 		exit;
 	}
+	if ($massaction === 'delete') {
+		lmdbreferralCheckToken();
+		$massResult = lmdbreferralMassDeleteLinks($db, $user, $toselect, $whereExtra);
+		if ($massResult['done'] > 0) {
+			setEventMessages($langs->trans('LmdbReferralMassDeleteDone', $massResult['done']), null, 'mesgs');
+		}
+		if (!empty($massResult['errors'])) {
+			setEventMessages('', $massResult['errors'], 'errors');
+		}
+		header('Location: '.$_SERVER['PHP_SELF'].'?'.ltrim($param, '&'));
+		exit;
+	}
 
 	$sqlCount = 'SELECT COUNT(DISTINCT l.rowid) as nb FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
 	$sqlCount .= ' WHERE '.implode(' AND ', $where);
@@ -129,6 +141,10 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra, $currentId)
 	$permissiontocancel = lmdbreferralCanDo($user, 'cancel');
 	if ($permissiontocancel) {
 		$arrayofmassactions['cancel'] = $langs->trans('LmdbReferralCancelSelectedLinks');
+	}
+	$permissiontodelete = lmdbreferralCanDo($user, 'delete');
+	if ($permissiontodelete) {
+		$arrayofmassactions['delete'] = $langs->trans('LmdbReferralDeleteSelectedLinks');
 	}
 	$massactionbutton = !empty($arrayofmassactions) ? $form->selectMassAction('', $arrayofmassactions) : '';
 

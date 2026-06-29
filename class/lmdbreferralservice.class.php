@@ -185,6 +185,56 @@ class LmdbReferralService
 	}
 
 	/**
+	 * Delete a link if it has not been transformed by a signed proposal.
+	 *
+	 * @param int  $id Link id
+	 * @param User $user User
+	 * @return int
+	 */
+	public function deleteLink($id, User $user)
+	{
+		$link = new LmdbReferralLink($this->db);
+		if ($link->fetch($id) <= 0) {
+			$this->error = 'ErrorRecordNotFound';
+			return -1;
+		}
+		if ($this->isLinkTransformed((int) $link->id)) {
+			$this->error = 'LmdbReferralDeleteTransformedForbidden';
+			return -1;
+		}
+		if ($link->delete($user) < 0) {
+			$this->error = $link->error;
+			$this->errors = $link->errors;
+			return -1;
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Tell if a referral link has been transformed by a signed proposal.
+	 *
+	 * @param int $linkId Link id
+	 * @return bool
+	 */
+	public function isLinkTransformed($linkId)
+	{
+		$sql = 'SELECT e.rowid';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_event as e';
+		$sql .= ' WHERE e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')';
+		$sql .= ' AND e.fk_lmdbreferral_link = '.((int) $linkId);
+		$sql .= " AND e.event_type = 'propal_signed'";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return true;
+		}
+
+		return $this->db->num_rows($resql) > 0;
+	}
+
+	/**
 	 * Fetch active links for referred thirdparty.
 	 *
 	 * @param int $fkSocFilleul Referred thirdparty

@@ -252,6 +252,92 @@ class LmdbReferralLink extends CommonObject
 	}
 
 	/**
+	 * Delete referral link and its internal/native linked data.
+	 *
+	 * @param User $user User
+	 * @param int  $notrigger 1 disables triggers
+	 * @return int
+	 */
+	public function delete(User $user, $notrigger = 0)
+	{
+		$error = 0;
+		$elementType = $this->getElementType();
+		$agendaElementType = lmdbreferralGetAgendaElementType();
+
+		$sql = 'SELECT e.rowid';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_event as e';
+		$sql .= ' WHERE e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')';
+		$sql .= ' AND e.fk_lmdbreferral_link = '.((int) $this->id);
+		$sql .= " AND e.event_type = 'propal_signed'";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		if ($this->db->num_rows($resql) > 0) {
+			$this->error = 'LmdbReferralDeleteTransformedForbidden';
+			return -1;
+		}
+
+		$this->db->begin();
+
+		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'actioncomm';
+		$sql .= ' WHERE fk_element = '.((int) $this->id);
+		$sql .= " AND elementtype IN ('".$this->db->escape($elementType)."', '".$this->db->escape($agendaElementType)."')";
+		if (!$this->db->query($sql)) {
+			$error++;
+			$this->error = $this->db->lasterror();
+		}
+
+		if (!$error) {
+			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'element_element';
+			$sql .= " WHERE ((fk_source = ".((int) $this->id)." AND sourcetype = '".$this->db->escape($elementType)."')";
+			$sql .= " OR (fk_target = ".((int) $this->id)." AND targettype = '".$this->db->escape($elementType)."'))";
+			if (!$this->db->query($sql)) {
+				$error++;
+				$this->error = $this->db->lasterror();
+			}
+		}
+
+		if (!$error) {
+			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'lmdbreferral_event';
+			$sql .= ' WHERE fk_lmdbreferral_link = '.((int) $this->id);
+			$sql .= ' AND entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')';
+			if (!$this->db->query($sql)) {
+				$error++;
+				$this->error = $this->db->lasterror();
+			}
+		}
+
+		if (!$error) {
+			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element;
+			$sql .= ' WHERE rowid = '.((int) $this->id);
+			$sql .= ' AND entity IN ('.lmdbreferralGetEntitySql($this->element).')';
+			if (!$this->db->query($sql)) {
+				$error++;
+				$this->error = $this->db->lasterror();
+			}
+		}
+
+		if (!$error && !$notrigger) {
+			$result = $this->call_trigger('LMDBREFERRAL_LINK_DELETE', $user);
+			if ($result < 0) {
+				$error++;
+			}
+		}
+
+		if (!$error) {
+			$this->db->commit();
+			return 1;
+		}
+
+		$this->db->rollback();
+
+		return -1;
+	}
+
+	/**
 	 * Get object URL.
 	 *
 	 * @param int $withpicto Picto mode

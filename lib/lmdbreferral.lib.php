@@ -155,6 +155,7 @@ function lmdbreferralCanDo($user, $action, $object = null)
 		'export' => 'export',
 		'api' => 'api',
 		'setup' => 'setup',
+		'delete' => 'delete',
 	);
 	$right = isset($map[$action]) ? $map[$action] : $action;
 
@@ -429,6 +430,77 @@ function lmdbreferralMassCancelLinks($db, $user, $ids, $whereExtra = '')
 				$message .= ' '.implode(', ', $service->errors);
 			}
 			$result['errors'][] = $message;
+			continue;
+		}
+		$result['done']++;
+	}
+
+	return $result;
+}
+
+/**
+ * Delete selected referral links if they have not been transformed.
+ *
+ * @param DoliDB     $db         Database handler
+ * @param User       $user       Current user
+ * @param array<int|string,mixed> $ids        Selected ids
+ * @param string     $whereExtra Optional SQL condition using alias l
+ * @return array{done:int,errors:array<int,string>}
+ */
+function lmdbreferralMassDeleteLinks($db, $user, $ids, $whereExtra = '')
+{
+	global $langs;
+
+	$result = array('done' => 0, 'errors' => array());
+	if (!lmdbreferralCanDo($user, 'delete')) {
+		$result['errors'][] = $langs->trans('NotEnoughPermissions');
+		return $result;
+	}
+	if (!is_array($ids) || empty($ids)) {
+		$result['errors'][] = $langs->trans('NoRecordSelected');
+		return $result;
+	}
+
+	dol_include_once('/lmdbreferral/class/lmdbreferralservice.class.php');
+	$service = new LmdbReferralService($db);
+	$seen = array();
+	foreach ($ids as $id) {
+		$linkId = (int) $id;
+		if ($linkId <= 0 || isset($seen[$linkId])) {
+			continue;
+		}
+		$seen[$linkId] = true;
+
+		$sql = 'SELECT l.rowid, l.ref';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
+		$sql .= ' WHERE l.rowid = '.$linkId;
+		$sql .= ' AND l.entity IN ('.lmdbreferralGetEntitySql('lmdbreferrallink').')';
+		if ($whereExtra !== '') {
+			$sql .= ' AND ('.$whereExtra.')';
+		}
+		$sql .= $db->plimit(1);
+		$resql = $db->query($sql);
+		if (!$resql) {
+			$result['errors'][] = $db->lasterror();
+			continue;
+		}
+		$obj = $db->fetch_object($resql);
+		if (!$obj) {
+			$result['errors'][] = $langs->trans('LmdbReferralMassDeleteUnavailable', $linkId);
+			continue;
+		}
+
+		if ($service->deleteLink($linkId, $user) < 0) {
+			$linkRef = !empty($obj->ref) ? (string) $obj->ref : (string) $linkId;
+			if ($service->error === 'LmdbReferralDeleteTransformedForbidden') {
+				$result['errors'][] = $langs->trans('LmdbReferralMassDeleteTransformed', $linkRef);
+			} else {
+				$message = $service->error !== '' ? $langs->trans($service->error) : $langs->trans('Error');
+				if (!empty($service->errors)) {
+					$message .= ' '.implode(', ', $service->errors);
+				}
+				$result['errors'][] = $message;
+			}
 			continue;
 		}
 		$result['done']++;

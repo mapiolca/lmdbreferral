@@ -14,6 +14,7 @@ if (!isModEnabled('lmdbreferral') || (!$permissiontoread && !$permissiontoreadow
 	accessforbidden();
 }
 $permissiontocancel = lmdbreferralCanDo($user, 'cancel');
+$permissiontodelete = lmdbreferralCanDo($user, 'delete');
 
 $form = new Form($db);
 $limit = GETPOSTINT('limit') ? GETPOSTINT('limit') : $conf->liste_limit;
@@ -136,12 +137,27 @@ if ($massaction === 'cancel') {
 	header('Location: '.$_SERVER['PHP_SELF'].($param !== '' ? '?'.ltrim($param, '&') : ''));
 	exit;
 }
+if ($massaction === 'delete') {
+	lmdbreferralCheckToken();
+	$massResult = lmdbreferralMassDeleteLinks($db, $user, $toselect);
+	if ($massResult['done'] > 0) {
+		setEventMessages($langs->trans('LmdbReferralMassDeleteDone', $massResult['done']), null, 'mesgs');
+	}
+	if (!empty($massResult['errors'])) {
+		setEventMessages('', $massResult['errors'], 'errors');
+	}
+	header('Location: '.$_SERVER['PHP_SELF'].($param !== '' ? '?'.ltrim($param, '&') : ''));
+	exit;
+}
 
 llxHeader('', $langs->trans('LmdbReferralList'));
 
 $arrayofmassactions = array();
 if ($permissiontocancel) {
 	$arrayofmassactions['cancel'] = $langs->trans('LmdbReferralCancelSelectedLinks');
+}
+if ($permissiontodelete) {
+	$arrayofmassactions['delete'] = $langs->trans('LmdbReferralDeleteSelectedLinks');
 }
 $massactionbutton = !empty($arrayofmassactions) ? $form->selectMassAction('', $arrayofmassactions) : '';
 $titleList = $langs->trans('LmdbReferralList');
