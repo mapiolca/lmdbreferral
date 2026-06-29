@@ -22,6 +22,8 @@
 - Alignement de `agenda.php` sur une liste Agenda native longue avec audit `Créé par` / `Modifié par`, colonne `Objet lié`, filtres, tri, pagination et limite `$conf->liste_limit`.
 - Harmonisation du rendu des listes du module avec le style natif Dolibarr : filtres à gauche, cases de sélection à gauche, classes `listwithfilterbefore`, compteurs, tri et pagination.
 - Alignement des boutons de l’édition inline `Parrain / apporteur` sur le pattern natif `smallpaddingimp nomargingtop nomarginbottom button`.
+- Fusion de la colonne de sélection avec la colonne de recherche native et suppression des compteurs manuels dans les titres de listes.
+- Refonte de la vue d’ensemble en dashboard commercial avec filtres, KPI, entonnoir, graphe étoile SVG, classements, relances et statistiques centralisées réutilisées par l’API.
 
 ## 1.0.0
 

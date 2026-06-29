@@ -1,0 +1,124 @@
+.lmdbreferral-dashboard-filters {
+	margin-bottom: 16px;
+}
+
+.lmdbreferral-dashboard-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+	gap: 10px;
+	margin: 12px 0 18px;
+}
+
+.lmdbreferral-kpi-card {
+	border: 1px solid var(--border-color, #ddd);
+	border-left: 4px solid #6b6b6b;
+	background: var(--colorbackbody, #fff);
+	padding: 12px 14px;
+	min-height: 76px;
+}
+
+.lmdbreferral-kpi-success {
+	border-left-color: #2fa87c;
+}
+
+.lmdbreferral-kpi-accent {
+	border-left-color: #1296b0;
+}
+
+.lmdbreferral-kpi-money {
+	border-left-color: #7963b0;
+}
+
+.lmdbreferral-kpi-label {
+	color: #666;
+	font-size: 0.92em;
+	margin-bottom: 8px;
+}
+
+.lmdbreferral-kpi-value {
+	font-size: 1.55em;
+	font-weight: 600;
+	line-height: 1.15;
+}
+
+.lmdbreferral-dashboard-columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 18px;
+	align-items: start;
+}
+
+.lmdbreferral-dashboard-block {
+	margin-bottom: 18px;
+}
+
+.lmdbreferral-funnel-bar {
+	height: 14px;
+	background: #ececec;
+	border-radius: 7px;
+	overflow: hidden;
+}
+
+.lmdbreferral-funnel-bar span {
+	display: block;
+	height: 100%;
+	background: #2fa87c;
+}
+
+.lmdbreferral-stargraph {
+	border: 1px solid var(--border-color, #ddd);
+	background: var(--colorbackbody, #fff);
+	padding: 10px;
+	margin-bottom: 18px;
+}
+
+.lmdbreferral-stargraph svg {
+	width: 100%;
+	min-height: 320px;
+	display: block;
+}
+
+.lmdbreferral-star-edge {
+	stroke: #b9b9b9;
+	stroke-width: 1.4;
+}
+
+.lmdbreferral-star-node circle {
+	stroke: #fff;
+	stroke-width: 2;
+}
+
+.lmdbreferral-star-node text {
+	font-size: 13px;
+	fill: #333;
+}
+
+.lmdbreferral-star-node-center circle {
+	fill: #1296b0;
+}
+
+.lmdbreferral-star-node-center text {
+	font-weight: 600;
+}
+
+.lmdbreferral-star-node-signed circle {
+	fill: #2fa87c;
+}
+
+.lmdbreferral-star-node-unsigned circle {
+	fill: #8b8f96;
+}
+
+.lmdbreferral-star-node-cancelled circle {
+	fill: #b85c5c;
+}
+
+.lmdbreferral-star-node-became_referrer circle {
+	fill: #7963b0;
+}
+
+@media (max-width: 900px) {
+	.lmdbreferral-dashboard-columns {
+		grid-template-columns: 1fr;
+	}
+}

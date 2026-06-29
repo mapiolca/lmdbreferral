@@ -157,7 +157,7 @@ function lmdbreferral_print_user_filleuls_table($db, $langs, $userId)
 		dol_print_error($db);
 	}
 
-	$titleList = $langs->trans('LmdbReferralTabReferrals').'<span class="opacitymedium colorblack paddingleft">('.((int) $num).')</span>';
+	$titleList = $langs->trans('LmdbReferralTabReferrals');
 
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'" name="form_lmdbreferral_user_filleuls">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -170,9 +170,6 @@ function lmdbreferral_print_user_filleuls_table($db, $langs, $userId)
 	print '<table class="tagtable nobottomiftotal liste listwithfilterbefore centpercent">';
 	print '<tr class="liste_titre_filter">';
 	print '<td class="liste_titre maxwidthsearch center actioncolumn">'.$form->showFilterButtons('left').'</td>';
-	if ($massactionbutton !== '') {
-		print '<td class="liste_titre maxwidthsearch center"></td>';
-	}
 	print '<td></td><td></td>';
 	print '<td class="center">'.$form->selectarray('search_lmdbreferral_status', array(LmdbReferralLink::STATUS_ACTIVE => $langs->trans('LmdbReferralStatusActive'), LmdbReferralLink::STATUS_CANCELLED => $langs->trans('LmdbReferralStatusCancelled')), $searchStatus, 1, 0, 0, '', 0, 0, 0, '', 'minwidth100').'</td>';
 	print '<td></td><td></td><td></td><td></td>';
@@ -191,14 +188,13 @@ function lmdbreferral_print_user_filleuls_table($db, $langs, $userId)
 	print '</td>';
 	print '</tr>';
 	print '<tr class="liste_titre">';
-	print '<th class="liste_titre maxwidthsearch center actioncolumn"></th>';
+	print '<th class="liste_titre maxwidthsearch center actioncolumn">';
 	if ($massactionbutton !== '') {
-		print '<th class="liste_titre center maxwidthsearch">';
 		if (method_exists($form, 'showCheckAddButtons')) {
 			print $form->showCheckAddButtons('checkforselect', 1);
 		}
-		print '</th>';
 	}
+	print '</th>';
 	print_liste_field_titre('LmdbReferralReferredThirdparty', $_SERVER['PHP_SELF'], 'filleul.nom', '', $param, '', $sortfield, $sortorder);
 	print_liste_field_titre('LmdbReferralAttachedDate', $_SERVER['PHP_SELF'], 'l.date_creation', '', $param, '', $sortfield, $sortorder);
 	print_liste_field_titre('Status', $_SERVER['PHP_SELF'], 'l.status', '', $param, 'center', $sortfield, $sortorder);
@@ -212,17 +208,12 @@ function lmdbreferral_print_user_filleuls_table($db, $langs, $userId)
 	if ($resql) {
 		while (($obj = $db->fetch_object($resql)) && $n < $limit) {
 			$n++;
-			$isLocked = getDolGlobalInt('LMDBREFERRAL_LOCK_REFERRER_AFTER_SIGNED_PROPAL', 1) && (int) $obj->signed_count > 0;
-			$canSelect = $permissiontocancel && (int) $obj->status === LmdbReferralLink::STATUS_ACTIVE && !$isLocked;
 			print '<tr class="oddeven">';
-			print '<td class="center actioncolumn"></td>';
+			print '<td class="center actioncolumn">';
 			if ($massactionbutton !== '') {
-				print '<td class="center">';
-				if ($canSelect) {
-					print '<input id="cb'.((int) $obj->rowid).'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.((int) $obj->rowid).'">';
-				}
-				print '</td>';
+				print '<input id="cb'.((int) $obj->rowid).'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.((int) $obj->rowid).'">';
 			}
+			print '</td>';
 			print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $obj->filleul_id.'">'.dol_escape_htmltag($obj->filleul_name).'</a></td>';
 			print '<td>'.dol_print_date($db->jdate($obj->date_creation), 'day').'</td>';
 			print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
@@ -235,7 +226,7 @@ function lmdbreferral_print_user_filleuls_table($db, $langs, $userId)
 		}
 	}
 	if ($n === 0) {
-		lmdbreferralPrintNoRecordRow($massactionbutton !== '' ? 10 : 9);
+		lmdbreferralPrintNoRecordRow(9);
 	}
 	print '</table>';
 	print '</div>';

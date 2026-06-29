@@ -29,6 +29,10 @@ if ($action === 'save') {
 		'LMDBREFERRAL_SHOW_USER_TAB' => GETPOSTINT('LMDBREFERRAL_SHOW_USER_TAB'),
 		'LMDBREFERRAL_STATS_INCLUDE_CANCELLED_OR_REFUSED_PROPALS' => GETPOSTINT('LMDBREFERRAL_STATS_INCLUDE_CANCELLED_OR_REFUSED_PROPALS'),
 		'LMDBREFERRAL_AMOUNT_REFERENCE' => GETPOST('LMDBREFERRAL_AMOUNT_REFERENCE', 'alpha') === 'TTC' ? 'TTC' : 'HT',
+		'LMDBREFERRAL_FOLLOWUP_DELAY_DAYS' => max(0, GETPOSTINT('LMDBREFERRAL_FOLLOWUP_DELAY_DAYS')),
+		'LMDBREFERRAL_STAR_MAX_NODES' => max(1, GETPOSTINT('LMDBREFERRAL_STAR_MAX_NODES')),
+		'LMDBREFERRAL_STAR_DEFAULT_DEPTH' => GETPOSTINT('LMDBREFERRAL_STAR_DEFAULT_DEPTH') === 2 ? 2 : 1,
+		'LMDBREFERRAL_STAR_ENABLE_DEPTH_2' => GETPOSTINT('LMDBREFERRAL_STAR_ENABLE_DEPTH_2'),
 	);
 	foreach ($constants as $name => $value) {
 		dolibarr_set_const($db, $name, $value, 'chaine', 0, '', (int) $conf->entity);
@@ -109,6 +113,12 @@ lmdbreferral_print_setup_yesno('LMDBREFERRAL_STATS_INCLUDE_CANCELLED_OR_REFUSED_
 print '<tr class="oddeven"><td class="titlefield">'.$langs->trans('LmdbReferralAmountReference').'</td><td>';
 print $form->selectarray('LMDBREFERRAL_AMOUNT_REFERENCE', array('HT' => $langs->trans('AmountHT'), 'TTC' => $langs->trans('AmountTTC')), getDolGlobalString('LMDBREFERRAL_AMOUNT_REFERENCE', 'HT'), 0, 0, 0, '', 0, 0, 0, '', 'minwidth100');
 print '</td></tr>';
+lmdbreferral_print_setup_int('LMDBREFERRAL_FOLLOWUP_DELAY_DAYS', 'LmdbReferralFollowUpDelayDays', 30, 0);
+lmdbreferral_print_setup_int('LMDBREFERRAL_STAR_MAX_NODES', 'LmdbReferralStarMaxNodes', 30, 1);
+print '<tr class="oddeven"><td class="titlefield">'.$langs->trans('LmdbReferralStarDefaultDepth').'</td><td>';
+print $form->selectarray('LMDBREFERRAL_STAR_DEFAULT_DEPTH', array(1 => '1', 2 => '2'), getDolGlobalInt('LMDBREFERRAL_STAR_DEFAULT_DEPTH', 1), 0, 0, 0, '', 0, 0, 0, '', 'maxwidth75');
+print '</td></tr>';
+lmdbreferral_print_setup_yesno('LMDBREFERRAL_STAR_ENABLE_DEPTH_2', 'LmdbReferralStarEnableDepth2', 1);
 print '</table>';
 print '<div class="center"><input type="submit" class="button button-save" value="'.$langs->trans('Save').'"></div>';
 print '</form>';
@@ -131,6 +141,25 @@ function lmdbreferral_print_setup_yesno($name, $label, $default)
 
 	$value = getDolGlobalInt($name, $default);
 	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans($label).'</td><td>'.$form->selectyesno($name, $value, 1).'</td></tr>';
+}
+
+/**
+ * Print integer setup row.
+ *
+ * @param string $name Constant name
+ * @param string $label Translation key
+ * @param int    $default Default
+ * @param int    $min Minimum value
+ * @return void
+ */
+function lmdbreferral_print_setup_int($name, $label, $default, $min)
+{
+	global $langs;
+
+	$value = getDolGlobalInt($name, $default);
+	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans($label).'</td><td>';
+	print '<input type="number" class="flat maxwidth75" min="'.((int) $min).'" name="'.dol_escape_htmltag($name).'" value="'.((int) $value).'">';
+	print '</td></tr>';
 }
 
 /**

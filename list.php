@@ -144,7 +144,7 @@ if ($permissiontocancel) {
 	$arrayofmassactions['cancel'] = $langs->trans('LmdbReferralCancelSelectedLinks');
 }
 $massactionbutton = !empty($arrayofmassactions) ? $form->selectMassAction('', $arrayofmassactions) : '';
-$titleList = $langs->trans('LmdbReferralList').'<span class="opacitymedium colorblack paddingleft">('.((int) $num).')</span>';
+$titleList = $langs->trans('LmdbReferralList');
 
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'" name="form_lmdbreferral_list">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -156,9 +156,6 @@ print '<div class="div-table-responsive-no-min">';
 print '<table class="tagtable nobottomiftotal liste listwithfilterbefore centpercent">';
 print '<tr class="liste_titre_filter">';
 print '<td class="liste_titre maxwidthsearch center actioncolumn">'.$form->showFilterButtons('left').'</td>';
-if ($massactionbutton !== '') {
-	print '<td class="liste_titre maxwidthsearch center"></td>';
-}
 print '<td></td>';
 print '<td>'.$form->selectarray('search_referrer_type', array('soc' => $langs->trans('ThirdParty'), 'user' => $langs->trans('User')), $searchReferrerType, 1, 0, 0, '', 0, 0, 0, '', 'minwidth100').'</td>';
 print '<td></td>';
@@ -184,14 +181,13 @@ print '</td>';
 print '</tr>';
 
 print '<tr class="liste_titre">';
-print '<th class="liste_titre maxwidthsearch center actioncolumn"></th>';
+print '<th class="liste_titre maxwidthsearch center actioncolumn">';
 if ($massactionbutton !== '') {
-	print '<th class="liste_titre center maxwidthsearch">';
 	if (method_exists($form, 'showCheckAddButtons')) {
 		print $form->showCheckAddButtons('checkforselect', 1);
 	}
-	print '</th>';
 }
+print '</th>';
 print_liste_field_titre('LmdbReferralReference', $_SERVER['PHP_SELF'], 't.ref', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre('LmdbReferralReferrer', $_SERVER['PHP_SELF'], 'referrer_name', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre('LmdbReferralReferrerType', $_SERVER['PHP_SELF'], 't.referrer_type', '', $param, '', $sortfield, $sortorder);
@@ -227,17 +223,12 @@ if ($resql) {
 		$linkObject->referrer_label = $referrerLabel;
 		$linkObject->filleul_label = (string) $obj->filleul_name;
 		$linkObject->entity_label = $entityLabel;
-		$isLocked = getDolGlobalInt('LMDBREFERRAL_LOCK_REFERRER_AFTER_SIGNED_PROPAL', 1) && (int) $obj->signed_count > 0;
-		$canSelect = $permissiontocancel && (int) $obj->status === LmdbReferralLink::STATUS_ACTIVE && !$isLocked;
 		print '<tr class="oddeven">';
-		print '<td class="center actioncolumn"></td>';
+		print '<td class="center actioncolumn">';
 		if ($massactionbutton !== '') {
-			print '<td class="center">';
-			if ($canSelect) {
-				print '<input id="cb'.((int) $obj->rowid).'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.((int) $obj->rowid).'">';
-			}
-			print '</td>';
+			print '<input id="cb'.((int) $obj->rowid).'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.((int) $obj->rowid).'">';
 		}
+		print '</td>';
 		print '<td class="nowraponall">'.$linkObject->getNomUrl(1).'</td>';
 		print '<td>'.lmdbreferralGetReferrerNomUrl($obj->referrer_type, $obj->referrer_type === 'soc' ? (int) $obj->fk_soc_parrain : (int) $obj->fk_user_parrain).'</td>';
 		print '<td>'.$langs->trans($obj->referrer_type === 'soc' ? 'ThirdParty' : 'User').'</td>';
@@ -252,7 +243,7 @@ if ($resql) {
 	}
 }
 if ($shown === 0) {
-	lmdbreferralPrintNoRecordRow($massactionbutton !== '' ? 12 : 11);
+	lmdbreferralPrintNoRecordRow(11);
 }
 print '</table>';
 print '</div>';

@@ -311,7 +311,7 @@ if ($limit) {
 $resql = $db->query($sqllist);
 $num = ($resql ? $db->num_rows($resql) : 0);
 
-$titlelist = $langs->trans('Actions').'<span class="opacitymedium colorblack paddingleft">('.((int) $nbEvent).')</span>';
+$titlelist = $langs->trans('Actions');
 
 print '<form name="listactionsfilter" class="listactionsfilter" action="'.$_SERVER['PHP_SELF'].'" method="GET">';
 print '<input type="hidden" name="id" value="'.((int) $object->id).'">';

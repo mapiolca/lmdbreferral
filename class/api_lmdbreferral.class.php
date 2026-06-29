@@ -7,6 +7,7 @@ require_once DOL_DOCUMENT_ROOT.'/api/class/api.class.php';
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
 dol_include_once('/lmdbreferral/class/lmdbreferrallink.class.php');
 dol_include_once('/lmdbreferral/class/lmdbreferralservice.class.php');
+dol_include_once('/lmdbreferral/class/lmdbreferralstats.class.php');
 
 /**
  * Referral REST API.
@@ -185,58 +186,73 @@ class LmdbReferralApi extends DolibarrApi
 	 *
 	 * @url GET /stats
 	 *
-	 * @return array<string,int|float>
+	 * @param string $datefield Date field
+	 * @param string $date_start Start date
+	 * @param string $date_end End date
+	 * @param string $referrer_type Referrer type
+	 * @param int    $status Link status
+	 * @param string $signed Signed filter
+	 * @param mixed  $entity Entity filter
+	 * @return array<string,mixed>
 	 */
-	public function getStats()
+	public function getStats($datefield = 'link', $date_start = '', $date_end = '', $referrer_type = '', $status = 0, $signed = '', $entity = null)
 	{
 		$this->checkPermission('read');
 
-		$where = 'l.entity IN ('.lmdbreferralGetEntitySql('lmdbreferrallink').')';
-		$out = array(
-			'active_referrers' => 0,
-			'total_referred' => 0,
-			'signed_referred' => 0,
-			'amount_ht' => 0.0,
-			'amount_ttc' => 0.0,
+		$stats = new LmdbReferralStats($this->db);
+		$filters = $this->buildStatsFilters($datefield, $date_start, $date_end, $referrer_type, $status, $signed, $entity);
+		$overview = $stats->getOverviewStats(DolibarrApiAccess::$user, $filters);
+		if ($stats->error !== '') {
+			throw new RestException(500, $stats->error);
+		}
+		$funnel = $stats->getFunnelStats(DolibarrApiAccess::$user, $filters);
+
+		return array(
+			'active_referrers' => (int) $overview['active_referrers'],
+			'total_referred' => (int) $overview['total_referred'],
+			'signed_referred' => (int) $overview['signed_referred'],
+			'amount_ht' => (float) $overview['amount_ht'],
+			'amount_ttc' => (float) $overview['amount_ttc'],
+			'overview' => $overview,
+			'funnel' => $funnel,
+			'rankings' => array(
+				'signed_count' => $stats->getRankingBySignedCount(DolibarrApiAccess::$user, $filters, 10),
+				'amount' => $stats->getRankingByAmount(DolibarrApiAccess::$user, $filters, 10),
+			),
+			'followup' => $stats->getFollowUpList(DolibarrApiAccess::$user, $filters, 20),
 		);
+	}
 
-		$sql = "SELECT COUNT(DISTINCT CONCAT(l.referrer_type, ':', COALESCE(l.fk_soc_parrain, l.fk_user_parrain))) as nb";
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
-		$sql .= ' WHERE '.$where.' AND l.status = '.LmdbReferralLink::STATUS_ACTIVE;
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			throw new RestException(500, $this->db->lasterror());
-		}
-		if ($obj = $this->db->fetch_object($resql)) {
-			$out['active_referrers'] = (int) $obj->nb;
-		}
+	/**
+	 * Get referral star graph.
+	 *
+	 * @url GET /graph
+	 *
+	 * @param string $center Graph center
+	 * @param int    $depth Graph depth
+	 * @param string $datefield Date field
+	 * @param string $date_start Start date
+	 * @param string $date_end End date
+	 * @param string $referrer_type Referrer type
+	 * @param int    $status Link status
+	 * @param string $signed Signed filter
+	 * @param mixed  $entity Entity filter
+	 * @return array<string,mixed>
+	 */
+	public function getGraph($center = '', $depth = 1, $datefield = 'link', $date_start = '', $date_end = '', $referrer_type = '', $status = 0, $signed = '', $entity = null)
+	{
+		$this->checkPermission('read');
 
-		$sql = 'SELECT COUNT(DISTINCT l.fk_soc_filleul) as nb';
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
-		$sql .= ' WHERE '.$where;
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			throw new RestException(500, $this->db->lasterror());
-		}
-		if ($obj = $this->db->fetch_object($resql)) {
-			$out['total_referred'] = (int) $obj->nb;
-		}
-
-		$sql = 'SELECT COUNT(DISTINCT l.fk_soc_filleul) as nb, SUM(e.amount_ht) as amount_ht, SUM(e.amount_ttc) as amount_ttc';
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
-		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."lmdbreferral_event as e ON e.fk_lmdbreferral_link = l.rowid AND e.event_type = 'propal_signed'";
-		$sql .= ' WHERE '.$where;
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			throw new RestException(500, $this->db->lasterror());
-		}
-		if ($obj = $this->db->fetch_object($resql)) {
-			$out['signed_referred'] = (int) $obj->nb;
-			$out['amount_ht'] = (float) $obj->amount_ht;
-			$out['amount_ttc'] = (float) $obj->amount_ttc;
+		$stats = new LmdbReferralStats($this->db);
+		$filters = $this->buildStatsFilters($datefield, $date_start, $date_end, $referrer_type, $status, $signed, $entity);
+		$filters['center'] = $center;
+		$filters['depth'] = (int) $depth;
+		$graph = $stats->getStarGraphData(DolibarrApiAccess::$user, $filters, $center, (int) $depth);
+		if ($stats->error !== '') {
+			throw new RestException(500, $stats->error);
 		}
 
-		return $out;
+		return $graph;
 	}
 
 	/**
@@ -255,6 +271,37 @@ class LmdbReferralApi extends DolibarrApi
 		if (!lmdbreferralCanDo(DolibarrApiAccess::$user, 'api') || !lmdbreferralCanDo(DolibarrApiAccess::$user, $right)) {
 			throw new RestException(403);
 		}
+	}
+
+	/**
+	 * Build stats filters from REST parameters and optional Dolibarr date components.
+	 *
+	 * @param string $datefield Date field
+	 * @param string $date_start Start date
+	 * @param string $date_end End date
+	 * @param string $referrer_type Referrer type
+	 * @param int    $status Link status
+	 * @param string $signed Signed filter
+	 * @param mixed  $entity Entity filter
+	 * @return array<string,mixed>
+	 */
+	private function buildStatsFilters($datefield, $date_start, $date_end, $referrer_type, $status, $signed, $entity)
+	{
+		return array(
+			'datefield' => $datefield,
+			'date_start' => $date_start,
+			'date_end' => $date_end,
+			'date_startday' => GETPOSTINT('date_startday'),
+			'date_startmonth' => GETPOSTINT('date_startmonth'),
+			'date_startyear' => GETPOSTINT('date_startyear'),
+			'date_endday' => GETPOSTINT('date_endday'),
+			'date_endmonth' => GETPOSTINT('date_endmonth'),
+			'date_endyear' => GETPOSTINT('date_endyear'),
+			'referrer_type' => $referrer_type,
+			'status' => (int) $status,
+			'signed' => $signed,
+			'entity' => $entity !== null ? $entity : GETPOST('entity', 'array'),
+		);
 	}
 
 	/**

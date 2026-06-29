@@ -78,6 +78,10 @@ class modLmdbReferral extends DolibarrModules
 			array('LMDBREFERRAL_SHOW_USER_TAB', 'chaine', '1', 'Show user referrals tab', 0, 'current', 0),
 			array('LMDBREFERRAL_STATS_INCLUDE_CANCELLED_OR_REFUSED_PROPALS', 'chaine', '0', 'Include cancelled/refused proposals in statistics', 0, 'current', 0),
 			array('LMDBREFERRAL_AMOUNT_REFERENCE', 'chaine', 'HT', 'Reference amount for statistics', 0, 'current', 0),
+			array('LMDBREFERRAL_FOLLOWUP_DELAY_DAYS', 'chaine', '30', 'Follow-up delay in days for unsigned referred thirdparties', 0, 'current', 0),
+			array('LMDBREFERRAL_STAR_MAX_NODES', 'chaine', '30', 'Maximum nodes in referral star graph', 0, 'current', 0),
+			array('LMDBREFERRAL_STAR_DEFAULT_DEPTH', 'chaine', '1', 'Default referral star graph depth', 0, 'current', 0),
+			array('LMDBREFERRAL_STAR_ENABLE_DEPTH_2', 'chaine', '1', 'Enable depth 2 in referral star graph', 0, 'current', 0),
 		);
 
 		$this->tabs = array();
