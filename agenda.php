@@ -339,7 +339,7 @@ if (!$resql) {
 	}
 
 	print '<div class="div-table-responsive-no-min">';
-	print '<table class="noborder centpercent liste listwithfilterbefore">';
+	print '<table class="tagtable nobottomiftotal liste listwithfilterbefore centpercent">';
 
 	print '<tr class="liste_titre_filter">';
 	print '<td class="liste_titre maxwidthsearch center actioncolumn">'.$form->showFilterButtons('left').'</td>';
