@@ -1,5 +1,9 @@
 # ChangeLog
 
+## Unreleased
+
+- Repositionnement du champ `Parrain / apporteur` dans les formulaires tiers, sous `Environnement` quand la ligne existe, sinon près du nom du tiers.
+
 ## 1.0.0
 
 - Création du module `lmdbreferral` avec ID Dolibarr `450023`.

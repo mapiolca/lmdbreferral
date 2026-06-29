@@ -172,11 +172,7 @@ class ActionsLmdbReferral
 		}
 		$langs->load('lmdbreferral@lmdbreferral');
 		$selected = GETPOST('lmdbreferral_referrer', 'alphanohtml');
-		print '<table class="border centpercent">';
-		print '<tr><td class="titlefieldcreate">'.$langs->trans('LmdbReferralReferrer').'</td><td colspan="3">';
-		print lmdbreferralSelectReferrer('lmdbreferral_referrer', $selected, 0);
-		print '</td></tr>';
-		print '</table><br>';
+		$this->printThirdpartyFormReferrerField($selected, 0, false);
 
 		return 0;
 	}
@@ -203,15 +199,7 @@ class ActionsLmdbReferral
 			$selected = GETPOST('lmdbreferral_referrer', 'alphanohtml');
 		}
 		$locked = (new LmdbReferralService($this->db))->isLockedBySignedProposal((int) $object->id);
-		print '<table class="border centpercent">';
-		print '<tr><td class="titlefieldcreate">'.$langs->trans('LmdbReferralReferrer').'</td><td colspan="3">';
-		if ($locked) {
-			print '<span class="opacitymedium">'.$langs->trans('LmdbReferralLockedAfterSignedProposal').'</span>';
-		} else {
-			print lmdbreferralSelectReferrer('lmdbreferral_referrer', $selected, (int) $object->id);
-		}
-		print '</td></tr>';
-		print '</table><br>';
+		$this->printThirdpartyFormReferrerField($selected, (int) $object->id, $locked);
 
 		return 0;
 	}
@@ -276,5 +264,87 @@ class ActionsLmdbReferral
 		}
 
 		return '';
+	}
+
+	/**
+	 * Print the referrer field and move it into the native thirdparty form table.
+	 *
+	 * @param string $selected Selected typed referrer
+	 * @param int    $excludeSocid Thirdparty to exclude from the selector
+	 * @param bool   $locked True when the field must be displayed read-only
+	 * @return void
+	 */
+	private function printThirdpartyFormReferrerField($selected, $excludeSocid, $locked)
+	{
+		global $langs;
+
+		$suffix = $excludeSocid > 0 ? 'edit' : 'create';
+		$wrapperId = 'lmdbreferral-referrer-wrapper-'.$suffix;
+		$rowId = 'lmdbreferral-referrer-row-'.$suffix;
+
+		print '<div id="'.$wrapperId.'" class="lmdbreferral-referrer-wrapper">';
+		print '<table class="border centpercent">';
+		print '<tr id="'.$rowId.'" class="lmdbreferral-referrer-row">';
+		print '<td class="titlefieldcreate">'.$langs->trans('LmdbReferralReferrer').'</td><td colspan="3">';
+		if ($locked) {
+			print '<span class="opacitymedium">'.$langs->trans('LmdbReferralLockedAfterSignedProposal').'</span>';
+		} else {
+			print lmdbreferralSelectReferrer('lmdbreferral_referrer', $selected, $excludeSocid);
+		}
+		print '</td></tr>';
+		print '</table>';
+		print '</div>';
+
+		print '<script>
+		jQuery(function($) {
+			var $wrapper = $("#'.dol_escape_js($wrapperId).'");
+			var $row = $("#'.dol_escape_js($rowId).'");
+			if (!$wrapper.length || !$row.length) {
+				return;
+			}
+
+			var $form = $row.closest("form");
+			if (!$form.length) {
+				$form = $("form[name=formsoc]").first();
+			}
+			if (!$form.length) {
+				return;
+			}
+
+			var $target = $();
+			$form.find("select[name=entity], input[name=entity]:not([type=hidden]), #entity, #selectentity").each(function() {
+				var $tr = $(this).closest("tr");
+				if ($tr.length) {
+					$target = $tr;
+					return false;
+				}
+			});
+
+			if (!$target.length) {
+				var entityLabels = ["'.dol_escape_js($langs->trans('Environment')).'", "'.dol_escape_js($langs->trans('Entity')).'"];
+				$form.find("tr").each(function() {
+					var label = $.trim($(this).children("td, th").first().text()).replace(/[:\\s]+$/, "");
+					for (var i = 0; i < entityLabels.length; i++) {
+						if (label && entityLabels[i] && label.toLowerCase() === entityLabels[i].toLowerCase()) {
+							$target = $(this);
+							return false;
+						}
+					}
+				});
+			}
+
+			if ($target.length) {
+				$target.after($row.detach());
+				$wrapper.remove();
+				return;
+			}
+
+			var $nameRow = $form.find("#name").first().closest("tr");
+			if ($nameRow.length) {
+				$nameRow.before($row.detach());
+				$wrapper.remove();
+			}
+		});
+		</script>';
 	}
 }
