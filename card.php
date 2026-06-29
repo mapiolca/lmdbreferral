@@ -151,7 +151,7 @@ $canReadAgenda = !empty($user->admin) || (method_exists($user, 'hasRight') && ($
 if (isModEnabled('agenda') && $canReadAgenda) {
 	$morehtmlcenter = dolGetButtonTitle($langs->trans('SeeAll'), '', 'fa fa-bars imgforviewmode', dol_buildpath('/lmdbreferral/agenda.php', 1).'?id='.(int) $object->id);
 	$formactions = new FormActions($db);
-	$formactions->showactions($object, $object->element.'@'.$object->module, $socid, 1, '', 10, '', $morehtmlcenter);
+	$formactions->showactions($object, lmdbreferralGetAgendaElementType(), $socid, 1, '', lmdbreferralGetAgendaBlockLimit(), '', $morehtmlcenter);
 } else {
 	print '<div class="opacitymedium">'.$langs->trans('LmdbReferralAgendaModuleDisabled').'</div>';
 }

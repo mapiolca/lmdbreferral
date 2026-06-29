@@ -105,6 +105,33 @@ function lmdbreferralGetLinkDocumentDir($object)
 }
 
 /**
+ * Return the native shortlist limit used for linked agenda events.
+ *
+ * @return int
+ */
+function lmdbreferralGetAgendaBlockLimit()
+{
+	global $conf;
+
+	$limit = !empty($conf->liste_limit) ? (int) $conf->liste_limit : 0;
+	if ($limit <= 0) {
+		$limit = 10;
+	}
+
+	return $limit;
+}
+
+/**
+ * Return the native Agenda element type for referral links.
+ *
+ * @return string
+ */
+function lmdbreferralGetAgendaElementType()
+{
+	return 'lmdbreferrallink@lmdbreferral';
+}
+
+/**
  * Check module permissions with administrator override.
  *
  * @param User        $user   User

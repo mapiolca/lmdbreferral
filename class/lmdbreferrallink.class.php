@@ -30,6 +30,8 @@ class LmdbReferralLink extends CommonObject
 	public $fk_user_author;
 	public $fk_user_modif;
 	public $fk_user_cancel;
+	public $fk_project = 0;
+	public $socid = 0;
 	public $note_private;
 
 	public const STATUS_ACTIVE = 1;
@@ -93,6 +95,8 @@ class LmdbReferralLink extends CommonObject
 		}
 		$this->id = (int) $obj->rowid;
 		$this->rowid = (int) $obj->rowid;
+		$this->fk_project = 0;
+		$this->socid = !empty($this->fk_soc_filleul) ? (int) $this->fk_soc_filleul : 0;
 	}
 
 	/**

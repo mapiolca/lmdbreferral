@@ -118,6 +118,45 @@ class ActionsLmdbReferral
 	}
 
 	/**
+	 * Expose the referral link object to native Dolibarr element resolution.
+	 *
+	 * @param array<string,mixed> $parameters Parameters
+	 * @param object             $object Object
+	 * @param string             $action Action
+	 * @param HookManager        $hookmanager Hook manager
+	 * @return int
+	 */
+	public function getElementProperties($parameters, &$object, &$action, $hookmanager)
+	{
+		global $conf;
+
+		$elementType = isset($parameters['elementType']) ? (string) $parameters['elementType'] : '';
+		if (!in_array($elementType, array('lmdbreferrallink', 'lmdbreferrallink@lmdbreferral'), true)) {
+			return 0;
+		}
+
+		$dirOutput = '';
+		if (!empty($conf->lmdbreferral->multidir_output[$conf->entity])) {
+			$dirOutput = (string) $conf->lmdbreferral->multidir_output[$conf->entity];
+		} elseif (!empty($conf->lmdbreferral->dir_output)) {
+			$dirOutput = (string) $conf->lmdbreferral->dir_output;
+		}
+
+		$this->results = array(
+			'module' => 'lmdbreferral',
+			'element' => 'lmdbreferrallink',
+			'table_element' => 'lmdbreferral_link',
+			'subelement' => 'lmdbreferrallink',
+			'classpath' => 'lmdbreferral/class',
+			'classfile' => 'lmdbreferrallink',
+			'classname' => 'LmdbReferralLink',
+			'dir_output' => $dirOutput,
+		);
+
+		return 0;
+	}
+
+	/**
 	 * Process custom thirdparty card actions.
 	 *
 	 * @param array<string,mixed> $parameters Parameters

@@ -8,6 +8,7 @@
 - Placement du champ `Parrain / apporteur` à l’emplacement de `Environnement` en création tiers lorsque Multicompany n’affiche pas cette ligne.
 - Utilisation des boutons natifs de filtre Dolibarr sur la liste principale des parrainages.
 - Refonte de `card.php` en fiche native avec onglets `Fiche`, `Fichiers joints` et `Événements/Agenda`.
+- Alignement du bloc Agenda sur la limite native de liste et déclaration de la résolution `lmdbreferrallink@lmdbreferral`.
 
 ## 1.0.0
 
