@@ -3,6 +3,7 @@
 
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
 dol_include_once('/lmdbreferral/class/lmdbreferrallink.class.php');
+require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
 
 /**
  * Referral service.
@@ -311,6 +312,7 @@ class LmdbReferralService
 			$sql .= ' AND fk_propal = '.((int) $fkPropal);
 			$resql = $this->db->query($sql);
 			if ($resql && $this->db->num_rows($resql) > 0) {
+				$this->createNativeAgendaEvent($linkId, $type, $fkPropal, $amountHt, $amountTtc, $dateEvent, $user, $entity);
 				return 0;
 			}
 		}
@@ -332,7 +334,190 @@ class LmdbReferralService
 			return -1;
 		}
 
+		if ($this->createNativeAgendaEvent($linkId, $type, $fkPropal, $amountHt, $amountTtc, $dateEvent, $user, $entity) < 0) {
+			return -1;
+		}
+
 		return 1;
+	}
+
+	/**
+	 * Synchronize existing internal referral events to native Agenda events.
+	 *
+	 * @param User $user User
+	 * @return int Number of native events created, <0 on error
+	 */
+	public function syncNativeAgendaEvents(User $user)
+	{
+		if (!isModEnabled('agenda')) {
+			return 0;
+		}
+
+		$created = 0;
+		$sql = 'SELECT e.fk_lmdbreferral_link, e.event_type, e.fk_propal, e.amount_ht, e.amount_ttc, e.date_event, e.entity';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_event as e';
+		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'lmdbreferral_link as l ON l.rowid = e.fk_lmdbreferral_link';
+		$sql .= ' WHERE e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')';
+		$sql .= ' ORDER BY e.rowid ASC';
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		while ($obj = $this->db->fetch_object($resql)) {
+			$result = $this->createNativeAgendaEvent(
+				(int) $obj->fk_lmdbreferral_link,
+				(string) $obj->event_type,
+				!empty($obj->fk_propal) ? (int) $obj->fk_propal : 0,
+				isset($obj->amount_ht) ? (float) $obj->amount_ht : 0,
+				isset($obj->amount_ttc) ? (float) $obj->amount_ttc : 0,
+				!empty($obj->date_event) ? $this->db->jdate($obj->date_event) : dol_now(),
+				$user,
+				(int) $obj->entity
+			);
+			if ($result < 0) {
+				return -1;
+			}
+			$created += $result;
+		}
+
+		return $created;
+	}
+
+	/**
+	 * Create the native Agenda event linked to a referral link.
+	 *
+	 * @param int    $linkId Link id
+	 * @param string $type Event type
+	 * @param int    $fkPropal Proposal id
+	 * @param float  $amountHt Amount HT
+	 * @param float  $amountTtc Amount TTC
+	 * @param int    $dateEvent Event timestamp
+	 * @param User   $user User
+	 * @param int    $entity Owner entity
+	 * @return int 1 created, 0 existing or skipped, <0 error
+	 */
+	private function createNativeAgendaEvent($linkId, $type, $fkPropal, $amountHt, $amountTtc, $dateEvent, User $user, $entity)
+	{
+		global $conf, $langs;
+
+		if (!isModEnabled('agenda')) {
+			return 0;
+		}
+
+		$link = new LmdbReferralLink($this->db);
+		if ($link->fetch((int) $linkId) <= 0) {
+			$this->error = 'ErrorRecordNotFound';
+			return -1;
+		}
+
+		$elementType = lmdbreferralGetAgendaElementType();
+		$refExt = $this->buildNativeAgendaRefExt((int) $linkId, $type, (int) $fkPropal);
+		$sql = 'SELECT id FROM '.MAIN_DB_PREFIX.'actioncomm';
+		$sql .= " WHERE ref_ext = '".$this->db->escape($refExt)."'";
+		$sql .= ' AND fk_element = '.((int) $linkId);
+		$sql .= " AND elementtype = '".$this->db->escape($elementType)."'";
+		$sql .= ' AND entity = '.((int) $entity);
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if ($resql && $this->db->num_rows($resql) > 0) {
+			return 0;
+		}
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		$typeCode = $this->getNativeAgendaTypeCode();
+		if ($typeCode === '') {
+			$this->error = 'ErrorActionCommBadType';
+			return -1;
+		}
+
+		$langs->load('lmdbreferral@lmdbreferral');
+		$label = $langs->transnoentitiesnoconv('LmdbReferralEvent_'.$type);
+		$note = $label;
+		if ($fkPropal > 0) {
+			$note .= "\n".$langs->transnoentitiesnoconv('LmdbReferralSignedProposal').': '.$fkPropal;
+		}
+		if ((float) $amountHt != 0 || (float) $amountTtc != 0) {
+			$note .= "\n".$langs->transnoentitiesnoconv('AmountHT').': '.price((float) $amountHt);
+			$note .= "\n".$langs->transnoentitiesnoconv('AmountTTC').': '.price((float) $amountTtc);
+		}
+
+		$actioncomm = new ActionComm($this->db);
+		$actioncomm->type_code = $typeCode;
+		$actioncomm->code = $typeCode;
+		$actioncomm->label = $label;
+		$actioncomm->note_private = $note;
+		$actioncomm->datep = (int) $dateEvent;
+		$actioncomm->datef = (int) $dateEvent;
+		$actioncomm->percentage = 100;
+		$actioncomm->priority = 0;
+		$actioncomm->fulldayevent = 0;
+		$actioncomm->transparency = 0;
+		$actioncomm->location = '';
+		$actioncomm->socid = !empty($link->fk_soc_filleul) ? (int) $link->fk_soc_filleul : 0;
+		$actioncomm->fk_project = 0;
+		$actioncomm->fk_element = (int) $linkId;
+		$actioncomm->elementtype = $elementType;
+		$actioncomm->ref_ext = $refExt;
+		$actioncomm->userownerid = !empty($user->id) ? (int) $user->id : 0;
+		$actioncomm->userassigned = array();
+		if (!empty($user->id)) {
+			$actioncomm->userassigned[(int) $user->id] = array('id' => (int) $user->id, 'transparency' => 0);
+		}
+
+		$currentEntity = (int) $conf->entity;
+		$conf->entity = (int) $entity;
+		try {
+			$result = $actioncomm->create($user);
+		} finally {
+			$conf->entity = $currentEntity;
+		}
+
+		if ($result < 0) {
+			$this->error = $actioncomm->error;
+			$this->errors = $actioncomm->errors;
+			return -1;
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Return a stable external reference for native Agenda idempotence.
+	 *
+	 * @param int    $linkId Link id
+	 * @param string $type Event type
+	 * @param int    $fkPropal Proposal id
+	 * @return string
+	 */
+	private function buildNativeAgendaRefExt($linkId, $type, $fkPropal)
+	{
+		return 'lmdbreferral:'.((int) $linkId).':'.(string) $type.':'.((int) $fkPropal);
+	}
+
+	/**
+	 * Return the best available native Agenda action type code.
+	 *
+	 * @return string
+	 */
+	private function getNativeAgendaTypeCode()
+	{
+		foreach (array('AC_OTH_AUTO', 'AC_OTH') as $code) {
+			$sql = 'SELECT id FROM '.MAIN_DB_PREFIX.'c_actioncomm';
+			$sql .= " WHERE code = '".$this->db->escape($code)."'";
+			$sql .= ' AND active = 1';
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if ($resql && $this->db->num_rows($resql) > 0) {
+				return $code;
+			}
+		}
+
+		return '';
 	}
 
 	/**

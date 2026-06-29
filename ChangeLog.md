@@ -9,6 +9,7 @@
 - Utilisation des boutons natifs de filtre Dolibarr sur la liste principale des parrainages.
 - Refonte de `card.php` en fiche native avec onglets `Fiche`, `Fichiers joints` et `Événements/Agenda`.
 - Alignement du bloc Agenda sur la limite native de liste et déclaration de la résolution `lmdbreferrallink@lmdbreferral`.
+- Intégration des événements métier de parrainage dans l’Agenda natif via `ActionComm`, avec synchronisation des événements existants à l’activation.
 
 ## 1.0.0
 

@@ -245,12 +245,24 @@ class modLmdbReferral extends DolibarrModules
 	 */
 	public function init($options = '')
 	{
+		global $user;
+
 		$result = $this->_load_tables('/lmdbreferral/sql/');
 		if ($result < 0) {
 			return -1;
 		}
 
 		$this->syncMulticompanySharing(1);
+		if (isModEnabled('agenda') && is_object($user)) {
+			dol_include_once('/lmdbreferral/class/lmdbreferralservice.class.php');
+			$service = new LmdbReferralService($this->db);
+			$result = $service->syncNativeAgendaEvents($user);
+			if ($result < 0) {
+				$this->error = $service->error;
+				$this->errors = $service->errors;
+				return -1;
+			}
+		}
 
 		return $this->_init(array(), $options);
 	}
