@@ -27,7 +27,7 @@ print dol_get_fiche_head($head, 'lmdbreferral_filleuls', $langs->trans('ThirdPar
 $linkback = '<a href="'.DOL_URL_ROOT.'/societe/list.php?restore_lastsearch_values=1">'.$langs->trans('BackToList').'</a>';
 dol_banner_tab($object, 'socid', $linkback, ($user->socid ? 0 : 1), 'rowid', 'nom');
 print '<div class="underbanner clearboth"></div>';
-lmdbreferral_print_filleuls_table($db, $langs, "l.referrer_type = 'soc' AND l.fk_soc_parrain = ".((int) $object->id));
+lmdbreferral_print_filleuls_table($db, $langs, "l.referrer_type = 'soc' AND l.fk_soc_parrain = ".((int) $object->id), (int) $object->id);
 print dol_get_fiche_end();
 llxFooter();
 $db->close();
@@ -38,21 +38,43 @@ $db->close();
  * @param DoliDB    $db Database
  * @param Translate $langs Langs
  * @param string    $whereExtra Extra where
+ * @param int       $currentId Current thirdparty id
  * @return void
  */
-function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra)
+function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra, $currentId)
 {
-	global $conf;
+	global $conf, $user;
 
 	$form = new Form($db);
 	$limit = GETPOSTINT('limit') ? GETPOSTINT('limit') : $conf->liste_limit;
+	$massaction = GETPOST('massaction', 'alpha');
+	$toselect = GETPOST('toselect', 'array');
+	$buttonSearch = (GETPOST('button_search', 'alpha') || GETPOST('button_search_x', 'alpha') || GETPOST('button_search.x', 'alpha'));
+	$buttonRemoveFilter = (GETPOST('button_removefilter', 'alpha') || GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha'));
 	$page = GETPOSTINT('page');
-	if ($page < 0) {
+	if ($page < 0 || $buttonSearch || $buttonRemoveFilter || $massaction !== '') {
 		$page = 0;
 	}
 	$offset = $limit * $page;
-	$searchStatus = GETPOST('search_lmdbreferral_status', 'int');
-	$searchEntityInput = GETPOST('search_lmdbreferral_entity', 'array');
+	$sortfield = GETPOST('sortfield', 'aZ09comma');
+	$sortorder = GETPOST('sortorder', 'aZ09comma');
+	if (!$sortfield) {
+		$sortfield = 'l.date_creation';
+	}
+	if (!$sortorder) {
+		$sortorder = 'DESC';
+	}
+	$allowedSort = array('filleul.nom', 'l.date_creation', 'l.status', 'signed_count', 'date_signature', 'amount_ht', 'amount_ttc', 'l.entity');
+	if (!in_array($sortfield, $allowedSort, true)) {
+		$sortfield = 'l.date_creation';
+	}
+
+	$searchStatus = 0;
+	$searchEntityInput = array();
+	if (!$buttonRemoveFilter) {
+		$searchStatus = GETPOST('search_lmdbreferral_status', 'int');
+		$searchEntityInput = GETPOST('search_lmdbreferral_entity', 'array');
+	}
 	$searchEntities = array();
 	if (!is_array($searchEntityInput)) {
 		$searchEntityInput = array();
@@ -74,12 +96,25 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra)
 		$where[] = 'l.entity IN ('.implode(',', array_map('intval', $searchEntities)).')';
 	}
 
-	$param = '&id='.GETPOSTINT('id');
+	$param = '&id='.((int) $currentId);
 	if ($searchStatus > 0) {
 		$param .= '&search_lmdbreferral_status='.(int) $searchStatus;
 	}
 	foreach ($searchEntities as $entityId) {
 		$param .= '&search_lmdbreferral_entity[]='.(int) $entityId;
+	}
+
+	if ($massaction === 'cancel') {
+		lmdbreferralCheckToken();
+		$massResult = lmdbreferralMassCancelLinks($db, $user, $toselect, $whereExtra);
+		if ($massResult['done'] > 0) {
+			setEventMessages($langs->trans('LmdbReferralMassCancelDone', $massResult['done']), null, 'mesgs');
+		}
+		if (!empty($massResult['errors'])) {
+			setEventMessages('', $massResult['errors'], 'errors');
+		}
+		header('Location: '.$_SERVER['PHP_SELF'].'?'.ltrim($param, '&'));
+		exit;
 	}
 
 	$sqlCount = 'SELECT COUNT(DISTINCT l.rowid) as nb FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
@@ -90,7 +125,12 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra)
 		$num = (int) $countObj->nb;
 	}
 
-	print_barre_liste($langs->trans('LmdbReferralTabReferrals'), $page, $_SERVER['PHP_SELF'], $param, '', '', '', $num, $num, 'fa-handshake', 0, '', '', $limit);
+	$arrayofmassactions = array();
+	$permissiontocancel = lmdbreferralCanDo($user, 'cancel');
+	if ($permissiontocancel) {
+		$arrayofmassactions['cancel'] = $langs->trans('LmdbReferralCancelSelectedLinks');
+	}
+	$massactionbutton = !empty($arrayofmassactions) ? $form->selectMassAction('', $arrayofmassactions) : '';
 
 	$sql = 'SELECT l.rowid, l.status, l.date_creation, l.entity, filleul.rowid as filleul_id, filleul.nom as filleul_name, ent.label as entity_label,';
 	$sql .= " COUNT(DISTINCT e.fk_propal) as signed_count, MAX(e.date_event) as date_signature, SUM(e.amount_ht) as amount_ht, SUM(e.amount_ttc) as amount_ttc, GROUP_CONCAT(p.ref ORDER BY e.date_event SEPARATOR ', ') as propal_refs";
@@ -101,18 +141,28 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra)
 	$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'entity as ent ON ent.rowid = l.entity';
 	$sql .= ' WHERE '.implode(' AND ', $where);
 	$sql .= ' GROUP BY l.rowid, l.status, l.date_creation, l.entity, filleul.rowid, filleul.nom, ent.label';
-	$sql .= ' ORDER BY l.date_creation DESC';
+	$sql .= $db->order($sortfield, $sortorder);
 	$sql .= $db->plimit($limit + 1, $offset);
 	$resql = $db->query($sql);
+	if (!$resql) {
+		dol_print_error($db);
+	}
 
-	print '<form method="GET" action="'.$_SERVER['PHP_SELF'].'">';
-	print '<input type="hidden" name="id" value="'.GETPOSTINT('id').'">';
-	print '<table class="noborder centpercent">';
+	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'" name="form_lmdbreferral_soc_filleuls">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="id" value="'.((int) $currentId).'">';
+	print '<input type="hidden" name="sortfield" value="'.dol_escape_htmltag($sortfield).'">';
+	print '<input type="hidden" name="sortorder" value="'.dol_escape_htmltag($sortorder).'">';
+	print '<input type="hidden" name="limit" value="'.((int) $limit).'">';
+	print_barre_liste($langs->trans('LmdbReferralTabReferrals'), $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, $massactionbutton, $num, $num, 'fa-handshake', 0, '', '', $limit);
+	print '<div class="div-table-responsive">';
+	print '<table class="liste centpercent">';
 	print '<tr class="liste_titre_filter">';
+	print '<td class="liste_titre maxwidthsearch center actioncolumn">'.$form->showFilterButtons('left').'</td>';
 	print '<td></td><td></td>';
 	print '<td class="center">'.$form->selectarray('search_lmdbreferral_status', array(LmdbReferralLink::STATUS_ACTIVE => $langs->trans('LmdbReferralStatusActive'), LmdbReferralLink::STATUS_CANCELLED => $langs->trans('LmdbReferralStatusCancelled')), $searchStatus, 1, 0, 0, '', 0, 0, 0, '', 'minwidth100').'</td>';
 	print '<td></td><td></td><td></td><td></td>';
-	print '<td><select class="flat minwidth100 multiselect2" multiple name="search_lmdbreferral_entity[]" id="search_lmdbreferral_entity">';
+	print '<td class="center"><select class="flat minwidth100 multiselect2" multiple name="search_lmdbreferral_entity[]" id="search_lmdbreferral_entity">';
 	$sqlEntity = 'SELECT rowid, label FROM '.MAIN_DB_PREFIX.'entity WHERE rowid IN ('.lmdbreferralGetEntitySql('lmdbreferrallink').') ORDER BY label ASC';
 	$resqlEntity = $db->query($sqlEntity);
 	if ($resqlEntity) {
@@ -124,28 +174,59 @@ function lmdbreferral_print_filleuls_table($db, $langs, $whereExtra)
 	if (function_exists('ajax_combobox')) {
 		print ajax_combobox('search_lmdbreferral_entity');
 	}
-	print ' <input type="submit" class="button small" value="'.$langs->trans('Search').'"></td>';
+	print '</td>';
+	if ($massactionbutton !== '') {
+		print '<td class="liste_titre maxwidthsearch center"></td>';
+	}
 	print '</tr>';
-	print '<tr class="liste_titre"><th>'.$langs->trans('LmdbReferralReferredThirdparty').'</th><th>'.$langs->trans('LmdbReferralAttachedDate').'</th><th class="center">'.$langs->trans('Status').'</th><th>'.$langs->trans('LmdbReferralSignedProposal').'</th><th>'.$langs->trans('LmdbReferralSignatureDate').'</th><th class="right">'.$langs->trans('LmdbReferralSignedAmountHT').'</th><th class="right">'.$langs->trans('LmdbReferralSignedAmountTTC').'</th><th>'.$langs->trans('Environment').'</th></tr>';
+	print '<tr class="liste_titre">';
+	print '<th class="liste_titre maxwidthsearch center actioncolumn"></th>';
+	print_liste_field_titre('LmdbReferralReferredThirdparty', $_SERVER['PHP_SELF'], 'filleul.nom', '', $param, '', $sortfield, $sortorder);
+	print_liste_field_titre('LmdbReferralAttachedDate', $_SERVER['PHP_SELF'], 'l.date_creation', '', $param, '', $sortfield, $sortorder);
+	print_liste_field_titre('Status', $_SERVER['PHP_SELF'], 'l.status', '', $param, 'center', $sortfield, $sortorder);
+	print_liste_field_titre('LmdbReferralSignedProposal', $_SERVER['PHP_SELF'], 'signed_count', '', $param, 'center', $sortfield, $sortorder);
+	print_liste_field_titre('LmdbReferralSignatureDate', $_SERVER['PHP_SELF'], 'date_signature', '', $param, '', $sortfield, $sortorder);
+	print_liste_field_titre('LmdbReferralSignedAmountHT', $_SERVER['PHP_SELF'], 'amount_ht', '', $param, 'right', $sortfield, $sortorder);
+	print_liste_field_titre('LmdbReferralSignedAmountTTC', $_SERVER['PHP_SELF'], 'amount_ttc', '', $param, 'right', $sortfield, $sortorder);
+	print_liste_field_titre('Environment', $_SERVER['PHP_SELF'], 'l.entity', '', $param, 'center', $sortfield, $sortorder);
+	if ($massactionbutton !== '') {
+		print '<th class="liste_titre center maxwidthsearch">';
+		if (method_exists($form, 'showCheckAddButtons')) {
+			print $form->showCheckAddButtons('checkforselect', 1);
+		}
+		print '</th>';
+	}
+	print '</tr>';
 	$n = 0;
 	if ($resql) {
 		while (($obj = $db->fetch_object($resql)) && $n < $limit) {
 			$n++;
+			$isLocked = getDolGlobalInt('LMDBREFERRAL_LOCK_REFERRER_AFTER_SIGNED_PROPAL', 1) && (int) $obj->signed_count > 0;
+			$canSelect = $permissiontocancel && (int) $obj->status === LmdbReferralLink::STATUS_ACTIVE && !$isLocked;
 			print '<tr class="oddeven">';
+			print '<td class="center actioncolumn"></td>';
 			print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $obj->filleul_id.'">'.dol_escape_htmltag($obj->filleul_name).'</a></td>';
 			print '<td>'.dol_print_date($db->jdate($obj->date_creation), 'day').'</td>';
 			print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
-			print '<td>'.lmdbreferralFormatSignedProposalRefs((int) $obj->signed_count, $obj->propal_refs).'</td>';
+			print '<td class="center">'.lmdbreferralFormatSignedProposalRefs((int) $obj->signed_count, $obj->propal_refs).'</td>';
 			print '<td>'.($obj->date_signature ? dol_print_date($db->jdate($obj->date_signature), 'day') : '').'</td>';
 			print '<td class="right">'.price((float) $obj->amount_ht).'</td>';
 			print '<td class="right">'.price((float) $obj->amount_ttc).'</td>';
 			print '<td align="center">'.lmdbreferralMulticompanyEntityBadge((int) $obj->entity, $obj->entity_label ? (string) $obj->entity_label : (string) $obj->entity).'</td>';
+			if ($massactionbutton !== '') {
+				print '<td class="center">';
+				if ($canSelect) {
+					print '<input id="cb'.((int) $obj->rowid).'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.((int) $obj->rowid).'">';
+				}
+				print '</td>';
+			}
 			print '</tr>';
 		}
 	}
 	if ($n === 0) {
-		lmdbreferralPrintNoRecordRow(8);
+		lmdbreferralPrintNoRecordRow($massactionbutton !== '' ? 10 : 9);
 	}
 	print '</table>';
+	print '</div>';
 	print '</form>';
 }

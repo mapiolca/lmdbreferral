@@ -16,6 +16,7 @@
 - Alignement du positionnement du champ `Parrain / apporteur` en édition tiers sur le formulaire de création.
 - Correction du rendu HTML de l’infobulle `getNomUrl()` des liens de parrainage.
 - Ajout du bloc natif `Objets liés` sur la fiche lien et liaison automatique des devis signés.
+- Uniformisation des listes de parrainages avec filtres natifs, tri, alignements, cases à cocher et annulation en masse.
 
 ## 1.0.0
 

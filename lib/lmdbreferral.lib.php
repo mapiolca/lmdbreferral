@@ -365,6 +365,79 @@ function lmdbreferralPrintNoRecordRow($colspan)
 }
 
 /**
+ * Cancel selected referral links with the same business guards as single-link actions.
+ *
+ * @param DoliDB     $db         Database handler
+ * @param User       $user       Current user
+ * @param array<int|string,mixed> $ids        Selected ids
+ * @param string     $whereExtra Optional SQL condition using alias l
+ * @return array{done:int,errors:array<int,string>}
+ */
+function lmdbreferralMassCancelLinks($db, $user, $ids, $whereExtra = '')
+{
+	global $langs;
+
+	$result = array('done' => 0, 'errors' => array());
+	if (!lmdbreferralCanDo($user, 'cancel')) {
+		$result['errors'][] = $langs->trans('NotEnoughPermissions');
+		return $result;
+	}
+	if (!is_array($ids) || empty($ids)) {
+		$result['errors'][] = $langs->trans('NoRecordSelected');
+		return $result;
+	}
+
+	dol_include_once('/lmdbreferral/class/lmdbreferralservice.class.php');
+	$service = new LmdbReferralService($db);
+	$seen = array();
+	foreach ($ids as $id) {
+		$linkId = (int) $id;
+		if ($linkId <= 0 || isset($seen[$linkId])) {
+			continue;
+		}
+		$seen[$linkId] = true;
+
+		$sql = 'SELECT l.rowid, l.ref, l.fk_soc_filleul, l.status';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
+		$sql .= ' WHERE l.rowid = '.$linkId;
+		$sql .= ' AND l.entity IN ('.lmdbreferralGetEntitySql('lmdbreferrallink').')';
+		if ($whereExtra !== '') {
+			$sql .= ' AND ('.$whereExtra.')';
+		}
+		$sql .= $db->plimit(1);
+		$resql = $db->query($sql);
+		if (!$resql) {
+			$result['errors'][] = $db->lasterror();
+			continue;
+		}
+		$obj = $db->fetch_object($resql);
+		if (!$obj) {
+			$result['errors'][] = $langs->trans('LmdbReferralMassCancelUnavailable', $linkId);
+			continue;
+		}
+		$linkRef = !empty($obj->ref) ? (string) $obj->ref : (string) $linkId;
+		if ((int) $obj->status !== LmdbReferralLink::STATUS_ACTIVE) {
+			continue;
+		}
+		if ($service->isLockedBySignedProposal((int) $obj->fk_soc_filleul)) {
+			$result['errors'][] = $langs->trans('LmdbReferralMassCancelLocked', $linkRef);
+			continue;
+		}
+		if ($service->cancelLink($linkId, $user) < 0) {
+			$message = $service->error !== '' ? $langs->trans($service->error) : $langs->trans('Error');
+			if (!empty($service->errors)) {
+				$message .= ' '.implode(', ', $service->errors);
+			}
+			$result['errors'][] = $message;
+			continue;
+		}
+		$result['done']++;
+	}
+
+	return $result;
+}
+
+/**
  * Return the native Multicompany entity badge markup.
  *
  * @param int    $entityId    Entity id
