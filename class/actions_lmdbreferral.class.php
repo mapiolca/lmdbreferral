@@ -235,11 +235,14 @@ class ActionsLmdbReferral
 		print '<div id="'.$wrapperId.'" class="lmdbreferral-referrer-view-wrapper">';
 		print '<div class="underbanner clearboth"></div>';
 		print '<table class="border tableforfield centpercent">';
-		print '<tr id="'.$rowId.'" class="lmdbreferral-referrer-view-row"><td class="titlefieldmiddle">'.$langs->trans('LmdbReferralReferrer').'</td><td>';
-		print lmdbreferralGetReferrerNomUrl($link->referrer_type, $link->referrer_type === 'soc' ? (int) $link->fk_soc_parrain : (int) $link->fk_user_parrain);
+		print '<tr id="'.$rowId.'" class="lmdbreferral-referrer-view-row"><td class="titlefieldmiddle">';
+		print '<table class="nobordernopadding centpercent"><tr><td>'.$langs->trans('LmdbReferralReferrer').'</td>';
 		if (lmdbreferralCanDo($user, 'write', $object)) {
-			print ' &nbsp; <a class="editfielda" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=edit&token='.newToken().'">'.img_edit($langs->trans('Modify'), 1).'</a>';
+			print '<td class="right"><a class="editfielda" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=edit&token='.newToken().'">'.img_edit($langs->trans('Modify'), 1).'</a></td>';
 		}
+		print '</tr></table>';
+		print '</td><td>';
+		print lmdbreferralGetReferrerNomUrl($link->referrer_type, $link->referrer_type === 'soc' ? (int) $link->fk_soc_parrain : (int) $link->fk_user_parrain);
 		if (lmdbreferralCanDo($user, 'cancel', $object) && !$service->isLockedBySignedProposal((int) $object->id)) {
 			print ' &nbsp; <a class="reposition" href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $object->id.'&action=lmdbreferral_cancel_referrer&token='.newToken().'">'.img_delete($langs->trans('LmdbReferralRemoveReferrer')).'</a>';
 		}
