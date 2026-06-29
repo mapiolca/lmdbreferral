@@ -7,6 +7,7 @@
 - Alignement de l’icône de modification du bloc `Parrain / apporteur` avec le rendu natif des libellés éditables.
 - Placement du champ `Parrain / apporteur` à l’emplacement de `Environnement` en création tiers lorsque Multicompany n’affiche pas cette ligne.
 - Utilisation des boutons natifs de filtre Dolibarr sur la liste principale des parrainages.
+- Refonte de `card.php` en fiche native avec onglets `Fiche`, `Fichiers joints` et `Événements/Agenda`.
 
 ## 1.0.0
 

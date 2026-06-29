@@ -34,6 +34,77 @@ function lmdbreferralAdminPrepareHead()
 }
 
 /**
+ * Prepare referral link card tabs.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return array<int,array<int,string>>
+ */
+function lmdbreferralLinkPrepareHead($object)
+{
+	global $langs;
+
+	$langs->loadLangs(array('agenda', 'lmdbreferral@lmdbreferral'));
+
+	$id = !empty($object->id) ? (int) $object->id : 0;
+	$head = array();
+	$h = 0;
+
+	$head[$h][0] = dol_buildpath('/lmdbreferral/card.php', 1).'?id='.$id;
+	$head[$h][1] = $langs->trans('Card');
+	$head[$h][2] = 'card';
+	$h++;
+
+	$head[$h][0] = dol_buildpath('/lmdbreferral/document.php', 1).'?id='.$id;
+	$head[$h][1] = $langs->trans('Documents');
+	$head[$h][2] = 'documents';
+	$h++;
+
+	if (isModEnabled('agenda')) {
+		$head[$h][0] = dol_buildpath('/lmdbreferral/agenda.php', 1).'?id='.$id;
+		$head[$h][1] = $langs->trans('Events').'/'.$langs->trans('Agenda');
+		$head[$h][2] = 'agenda';
+		$h++;
+	}
+
+	return $head;
+}
+
+/**
+ * Return document directory for a referral link.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkDocumentDir($object)
+{
+	global $conf;
+
+	if (!function_exists('dol_sanitizeFileName')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	}
+
+	$upload_dir = '';
+	if (function_exists('getMultidirOutput')) {
+		$upload_dir = (string) getMultidirOutput($object, 'lmdbreferral', 1);
+	}
+
+	if (empty($upload_dir)) {
+		$objectEntity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$moduleOutput = '';
+		if (!empty($conf->lmdbreferral->multidir_output[$objectEntity])) {
+			$moduleOutput = (string) $conf->lmdbreferral->multidir_output[$objectEntity];
+		} elseif (!empty($conf->lmdbreferral->dir_output)) {
+			$moduleOutput = (string) $conf->lmdbreferral->dir_output;
+		}
+		if ($moduleOutput !== '') {
+			$upload_dir = $moduleOutput.'/'.$object->element.'/'.dol_sanitizeFileName((string) $object->ref);
+		}
+	}
+
+	return $upload_dir;
+}
+
+/**
  * Check module permissions with administrator override.
  *
  * @param User        $user   User
