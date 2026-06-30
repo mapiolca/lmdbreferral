@@ -84,21 +84,22 @@ function lmdbreferralGetLinkDocumentDir($object)
 	}
 
 	$upload_dir = '';
+	$moduleOutput = '';
 	if (function_exists('getMultidirOutput')) {
-		$upload_dir = (string) getMultidirOutput($object, 'lmdbreferral', 1);
+		$moduleOutput = (string) getMultidirOutput($object, 'lmdbreferral', 0);
 	}
 
-	if (empty($upload_dir)) {
+	if ($moduleOutput === '' || strpos($moduleOutput, 'error-') === 0) {
 		$objectEntity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-		$moduleOutput = '';
 		if (!empty($conf->lmdbreferral->multidir_output[$objectEntity])) {
 			$moduleOutput = (string) $conf->lmdbreferral->multidir_output[$objectEntity];
 		} elseif (!empty($conf->lmdbreferral->dir_output)) {
 			$moduleOutput = (string) $conf->lmdbreferral->dir_output;
 		}
-		if ($moduleOutput !== '') {
-			$upload_dir = $moduleOutput.'/'.$object->element.'/'.dol_sanitizeFileName((string) $object->ref);
-		}
+	}
+
+	if ($moduleOutput !== '' && strpos($moduleOutput, 'error-') !== 0) {
+		$upload_dir = rtrim($moduleOutput, '/').'/'.lmdbreferralGetLinkDocumentSubdir($object);
 	}
 
 	return $upload_dir;
@@ -111,7 +112,7 @@ function lmdbreferralGetLinkDocumentDir($object)
  */
 function lmdbreferralGetLinkDocumentModulePart()
 {
-	return 'lmdbreferral:LmdbReferralLink';
+	return 'lmdbreferral';
 }
 
 /**

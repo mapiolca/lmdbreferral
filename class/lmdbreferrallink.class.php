@@ -497,6 +497,6 @@ class LmdbReferralLink extends CommonObject
 			$modele = !empty($this->model_pdf) ? $this->model_pdf : getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
 		}
 
-		return $this->commonGenerateDocument('core/modules/lmdbreferral/doc/', $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
+		return $this->commonGenerateDocument('lmdbreferral/core/modules/lmdbreferral/doc/', $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
 	}
 }
