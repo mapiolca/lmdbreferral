@@ -54,6 +54,13 @@ class LmdbReferralCompatibility
 				'min_php' => self::MIN_PHP_VERSION,
 				'checks' => array('Propal'),
 			),
+			'invoice_referral_banner' => array(
+				'label' => 'LmdbReferralCompatibilityFeatureInvoiceBanner',
+				'description' => 'LmdbReferralCompatibilityFeatureInvoiceBannerDesc',
+				'min_dolibarr' => '20.0.0',
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('Facture'),
+			),
 			'multicompany_sharing' => array(
 				'label' => 'LmdbReferralCompatibilityFeatureMulticompany',
 				'description' => 'LmdbReferralCompatibilityFeatureMulticompanyDesc',
@@ -120,6 +127,11 @@ class LmdbReferralCompatibility
 					break;
 				}
 				if ($check === 'Propal' && !class_exists('Propal')) {
+					$available = false;
+					$reason = 'LmdbReferralCompatibilityReasonClassMissing';
+					break;
+				}
+				if ($check === 'Facture' && !class_exists('Facture')) {
 					$available = false;
 					$reason = 'LmdbReferralCompatibilityReasonClassMissing';
 					break;

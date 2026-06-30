@@ -8,6 +8,8 @@ Module externe Dolibarr V1 pour suivre les liens de parrainage entre un tiers ou
 - parrainage par tiers et, si activé, par utilisateurs autorisés ;
 - annulation fonctionnelle des liens sans suppression physique ;
 - détection automatique des devis signés via `PROPAL_CLOSE_SIGNED` ;
+- rattachement automatique des devis déjà signés lors de l’attribution d’un parrain ;
+- bannière native sur les factures des tiers filleuls avec un lien de parrainage actif ;
 - vue d’ensemble statistique avec filtres, KPI, entonnoir, graphe étoile, classements et relances ;
 - liste native exportable des parrainages ;
 - API REST minimale : liste, détail, création, remplacement, annulation, événements, statistiques enrichies et graphe étoile ;

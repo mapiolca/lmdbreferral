@@ -45,6 +45,7 @@ class modLmdbReferral extends DolibarrModules
 			'hooks' => array(
 				'data' => array(
 					'thirdpartycard',
+					'invoicecard',
 					'usercard',
 					'globalcard',
 					'elementproperties',
@@ -270,6 +271,12 @@ class modLmdbReferral extends DolibarrModules
 		if (is_object($user)) {
 			dol_include_once('/lmdbreferral/class/lmdbreferralservice.class.php');
 			$service = new LmdbReferralService($this->db);
+			$result = $service->syncSignedProposalsForActiveLinks($user);
+			if ($result < 0) {
+				$this->error = $service->error;
+				$this->errors = $service->errors;
+				return -1;
+			}
 			$result = $service->syncNativeLinkedObjects($user);
 			if ($result < 0) {
 				$this->error = $service->error;

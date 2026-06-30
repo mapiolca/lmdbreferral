@@ -6,6 +6,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
 dol_include_once('/lmdbreferral/class/lmdbreferralcompatibility.class.php');
 dol_include_once('/comm/propal/class/propal.class.php');
+dol_include_once('/compta/facture/class/facture.class.php');
 
 $langs->loadLangs(array('admin', 'lmdbreferral@lmdbreferral'));
 

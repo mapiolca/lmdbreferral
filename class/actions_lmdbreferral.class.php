@@ -170,6 +170,9 @@ class ActionsLmdbReferral
 		global $langs, $user;
 
 		$contexts = explode(':', isset($parameters['context']) ? $parameters['context'] : '');
+		if (in_array('invoicecard', $contexts, true)) {
+			return $this->displayInvoiceReferralBanner($object, $action);
+		}
 		if (!in_array('thirdpartycard', $contexts, true)) {
 			return 0;
 		}
@@ -214,6 +217,64 @@ class ActionsLmdbReferral
 			header('Location: '.DOL_URL_ROOT.'/societe/card.php?socid='.$socid);
 			exit;
 		}
+
+		return 0;
+	}
+
+	/**
+	 * Display the native warning banner on invoices for referred thirdparties.
+	 *
+	 * @param object $object Invoice
+	 * @param string $action Current action
+	 * @return int
+	 */
+	private function displayInvoiceReferralBanner($object, $action)
+	{
+		global $langs, $user;
+
+		if (!in_array((string) $action, array('', 'view'), true) || !lmdbreferralCanDo($user, 'read', $object)) {
+			return 0;
+		}
+
+		$socid = 0;
+		if (is_object($object)) {
+			if (!empty($object->socid)) {
+				$socid = (int) $object->socid;
+			} elseif (!empty($object->fk_soc)) {
+				$socid = (int) $object->fk_soc;
+			}
+		}
+		if ($socid <= 0) {
+			$facid = GETPOSTINT('facid') ? GETPOSTINT('facid') : GETPOSTINT('id');
+			if ($facid <= 0) {
+				return 0;
+			}
+
+			$sql = 'SELECT f.fk_soc';
+			$sql .= ' FROM '.MAIN_DB_PREFIX.'facture as f';
+			$sql .= ' WHERE f.rowid = '.((int) $facid);
+			$sql .= ' AND f.entity IN ('.lmdbreferralGetEntitySql('facture').')';
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->error = $this->db->lasterror();
+				return 0;
+			}
+			$obj = $this->db->fetch_object($resql);
+			if (!is_object($obj) || empty($obj->fk_soc)) {
+				return 0;
+			}
+			$socid = (int) $obj->fk_soc;
+		}
+
+		$service = new LmdbReferralService($this->db);
+		$links = $service->fetchActiveByFilleul($socid);
+		if (empty($links)) {
+			return 0;
+		}
+
+		$langs->load('lmdbreferral@lmdbreferral');
+		setEventMessages($langs->trans('LmdbReferralInvoiceReferredThirdpartyBanner'), null, 'warnings');
 
 		return 0;
 	}

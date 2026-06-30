@@ -4,6 +4,7 @@
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
 dol_include_once('/lmdbreferral/class/lmdbreferrallink.class.php');
 require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
+require_once DOL_DOCUMENT_ROOT.'/comm/propal/class/propal.class.php';
 
 /**
  * Referral service.
@@ -58,12 +59,18 @@ class LmdbReferralService
 	public function replaceFromValue($value, $fkSocFilleul, User $user)
 	{
 		$referrer = lmdbreferralParseReferrerValue($value);
+		$active = $this->fetchActiveByFilleul($fkSocFilleul);
+		foreach ($active as $link) {
+			if ($this->syncSignedProposalsForLink((int) $link->id, $user) < 0) {
+				return -1;
+			}
+		}
+
 		if ($this->isLockedBySignedProposal($fkSocFilleul)) {
 			$this->error = 'LmdbReferralLockedAfterSignedProposal';
 			return -1;
 		}
 
-		$active = $this->fetchActiveByFilleul($fkSocFilleul);
 		if (empty($referrer['type']) || empty($referrer['id'])) {
 			$result = 0;
 			foreach ($active as $link) {
@@ -156,6 +163,9 @@ class LmdbReferralService
 		}
 
 		$this->createEvent((int) $link->id, 'link_created', 0, 0, 0, dol_now(), $user);
+		if ($this->syncSignedProposalsForLink((int) $link->id, $user) < 0) {
+			return -1;
+		}
 
 		return (int) $link->id;
 	}
@@ -316,21 +326,117 @@ class LmdbReferralService
 				$dateEvent,
 				$user
 			);
-				if ($res < 0) {
+			if ($res < 0) {
+				return -1;
+			}
+			if ($res > 0) {
+				$triggerResult = $link->call_trigger('LMDBREFERRAL_PROPAL_SIGNED', $user);
+				if ($triggerResult < 0) {
+					$this->error = $link->error;
+					$this->errors = $link->errors;
 					return -1;
 				}
-				if ($res > 0) {
-					$triggerResult = $link->call_trigger('LMDBREFERRAL_PROPAL_SIGNED', $user);
-					if ($triggerResult < 0) {
-						$this->error = $link->error;
-						$this->errors = $link->errors;
-						return -1;
-					}
-				}
-				$result += $res;
 			}
+			$result += $res;
+
+			$syncResult = $this->syncSignedProposalsForLink((int) $link->id, $user);
+			if ($syncResult < 0) {
+				return -1;
+			}
+			$result += $syncResult;
+		}
 
 		return $result;
+	}
+
+	/**
+	 * Synchronize all signed proposals of the referred thirdparty to a referral link.
+	 *
+	 * @param int  $linkId Link id
+	 * @param User $user   User
+	 * @return int Number of internal events created, <0 on error
+	 */
+	public function syncSignedProposalsForLink($linkId, User $user)
+	{
+		$link = new LmdbReferralLink($this->db);
+		if ($link->fetch((int) $linkId) <= 0) {
+			$this->error = 'ErrorRecordNotFound';
+			return -1;
+		}
+		if ((int) $link->status !== LmdbReferralLink::STATUS_ACTIVE || (int) $link->fk_soc_filleul <= 0) {
+			return 0;
+		}
+
+		$created = 0;
+		$sql = 'SELECT p.rowid, p.total_ht, p.total_ttc, p.date_signature, p.date_valid, p.tms';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'propal as p';
+		$sql .= ' WHERE p.entity IN ('.lmdbreferralGetEntitySql('propal').')';
+		$sql .= ' AND p.fk_soc = '.((int) $link->fk_soc_filleul);
+		$sql .= ' AND p.fk_statut = '.((int) Propal::STATUS_SIGNED);
+		$sql .= ' ORDER BY p.date_signature ASC, p.rowid ASC';
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		while (is_object($obj = $this->db->fetch_object($resql))) {
+			$dateEvent = dol_now();
+			if (!empty($obj->date_signature)) {
+				$dateEvent = $this->db->jdate($obj->date_signature);
+			} elseif (!empty($obj->date_valid)) {
+				$dateEvent = $this->db->jdate($obj->date_valid);
+			} elseif (!empty($obj->tms)) {
+				$dateEvent = $this->db->jdate($obj->tms);
+			}
+
+			$result = $this->createEvent(
+				(int) $link->id,
+				'propal_signed',
+				(int) $obj->rowid,
+				isset($obj->total_ht) ? (float) $obj->total_ht : 0,
+				isset($obj->total_ttc) ? (float) $obj->total_ttc : 0,
+				$dateEvent,
+				$user
+			);
+			if ($result < 0) {
+				return -1;
+			}
+			$created += $result;
+		}
+
+		return $created;
+	}
+
+	/**
+	 * Synchronize signed proposals for all active referral links in the current entity scope.
+	 *
+	 * @param User $user User
+	 * @return int Number of internal events created, <0 on error
+	 */
+	public function syncSignedProposalsForActiveLinks(User $user)
+	{
+		$created = 0;
+		$sql = 'SELECT l.rowid';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_link as l';
+		$sql .= ' WHERE l.entity IN ('.lmdbreferralGetEntitySql('lmdbreferrallink').')';
+		$sql .= ' AND l.status = '.LmdbReferralLink::STATUS_ACTIVE;
+		$sql .= ' ORDER BY l.rowid ASC';
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		while (is_object($obj = $this->db->fetch_object($resql))) {
+			$result = $this->syncSignedProposalsForLink((int) $obj->rowid, $user);
+			if ($result < 0) {
+				return -1;
+			}
+			$created += $result;
+		}
+
+		return $created;
 	}
 
 	/**
