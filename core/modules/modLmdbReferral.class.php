@@ -372,20 +372,13 @@ class modLmdbReferral extends DolibarrModules
 
 		$type = 'lmdbreferrallink';
 		$model = 'standard_lmdbreferrallink';
-		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'document_model';
-		$sql .= " WHERE nom = '".$this->db->escape($model)."'";
-		$sql .= " AND type = '".$this->db->escape($type)."'";
-		$sql .= ' AND entity = '.((int) $conf->entity);
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			$this->error = $this->db->lasterror();
+		$exists = $this->normalizeLinkDocumentModel($model, $type);
+		if ($exists < 0) {
 			return -1;
 		}
-		$exists = (bool) $this->db->fetch_object($resql);
-		$this->db->free($resql);
 
 		if (!$exists) {
-			$result = addDocumentModel($model, $type, 'Standard', 'lmdbreferral/core/modules/lmdbreferral/doc');
+			$result = addDocumentModel($model, $type, 'Standard');
 			if ($result <= 0) {
 				$this->error = $this->db->lasterror();
 				return -1;
@@ -398,6 +391,45 @@ class modLmdbReferral extends DolibarrModules
 				$this->error = $this->db->lasterror();
 				return -1;
 			}
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Normalize standard PHP PDF model registration.
+	 *
+	 * @param string $model Model name
+	 * @param string $type Document type
+	 * @return int 1 if a row exists, 0 if no row exists, -1 on error
+	 */
+	private function normalizeLinkDocumentModel($model, $type)
+	{
+		global $conf;
+
+		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'document_model';
+		$sql .= " WHERE nom = '".$this->db->escape($model)."'";
+		$sql .= " AND type = '".$this->db->escape($type)."'";
+		$sql .= ' AND entity = '.((int) $conf->entity);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$exists = (bool) $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if (!$exists) {
+			return 0;
+		}
+
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'document_model';
+		$sql .= " SET libelle = 'Standard', description = NULL";
+		$sql .= " WHERE nom = '".$this->db->escape($model)."'";
+		$sql .= " AND type = '".$this->db->escape($type)."'";
+		$sql .= ' AND entity = '.((int) $conf->entity);
+		if (!$this->db->query($sql)) {
+			$this->error = $this->db->lasterror();
+			return -1;
 		}
 
 		return 1;

@@ -140,6 +140,11 @@ print load_fiche_titre($langs->trans('LmdbReferralSetup'), $linkback, 'fa-handsh
 $head = lmdbreferralAdminPrepareHead();
 print dol_get_fiche_head($head, 'settings', $langs->trans('LmdbReferralSetup'), -1, 'lmdbreferral@lmdbreferral');
 
+lmdbreferral_print_numbering_models($pageToken);
+print '<br>';
+lmdbreferral_print_document_models($pageToken);
+print '<br>';
+
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.dol_escape_htmltag($pageToken).'">';
 print '<input type="hidden" name="action" value="save">';
@@ -169,11 +174,6 @@ lmdbreferral_print_setup_yesno('LMDBREFERRAL_STAR_ENABLE_DEPTH_2', 'LmdbReferral
 print '</table>';
 print '<div class="center"><input type="submit" class="button button-save" value="'.$langs->trans('Save').'"></div>';
 print '</form>';
-
-print '<br>';
-lmdbreferral_print_numbering_models($pageToken);
-print '<br>';
-lmdbreferral_print_document_models($pageToken);
 
 print dol_get_fiche_end();
 llxFooter();
@@ -297,7 +297,6 @@ function lmdbreferral_update_document_model($action, $value)
 	global $db, $conf;
 
 	$type = 'lmdbreferrallink';
-	$scandir = 'lmdbreferral/core/modules/lmdbreferral/doc';
 	$label = 'Standard';
 
 	if (!preg_match('/^[a-z0-9_]+$/', $value)) {
@@ -315,7 +314,10 @@ function lmdbreferral_update_document_model($action, $value)
 
 	$result = 1;
 	if (!lmdbreferral_document_model_is_active($value)) {
-		$result = addDocumentModel($value, $type, $label, $scandir);
+		$result = lmdbreferral_normalize_document_model($value);
+		if ($result === 0) {
+			$result = addDocumentModel($value, $type, $label);
+		}
 	}
 	if ($result <= 0) {
 		return -1;
@@ -341,6 +343,7 @@ function lmdbreferral_document_model_is_active($name)
 	$sql .= " WHERE nom = '".$db->escape($name)."'";
 	$sql .= " AND type = 'lmdbreferrallink'";
 	$sql .= ' AND entity = '.((int) $conf->entity);
+	$sql .= " AND (description IS NULL OR description = '')";
 	$resql = $db->query($sql);
 	if (!$resql) {
 		return false;
@@ -349,6 +352,40 @@ function lmdbreferral_document_model_is_active($name)
 	$db->free($resql);
 
 	return $active;
+}
+
+/**
+ * Normalize a PHP document model row for the current entity.
+ *
+ * @param string $name Model name
+ * @return int 1 if existing row was normalized, 0 if no row exists, -1 on error
+ */
+function lmdbreferral_normalize_document_model($name)
+{
+	global $db, $conf;
+
+	$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'document_model';
+	$sql .= " WHERE nom = '".$db->escape($name)."'";
+	$sql .= " AND type = 'lmdbreferrallink'";
+	$sql .= ' AND entity = '.((int) $conf->entity);
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return -1;
+	}
+	$exists = (bool) $db->fetch_object($resql);
+	$db->free($resql);
+
+	if (!$exists) {
+		return 0;
+	}
+
+	$sql = 'UPDATE '.MAIN_DB_PREFIX.'document_model';
+	$sql .= " SET libelle = 'Standard', description = NULL";
+	$sql .= " WHERE nom = '".$db->escape($name)."'";
+	$sql .= " AND type = 'lmdbreferrallink'";
+	$sql .= ' AND entity = '.((int) $conf->entity);
+
+	return $db->query($sql) ? 1 : -1;
 }
 
 /**
@@ -426,7 +463,6 @@ function lmdbreferral_print_document_models($token)
 	print '<tr class="liste_titre"><th>'.$langs->trans('Name').'</th><th>'.$langs->trans('Description').'</th><th class="center">'.$langs->trans('Type').'</th><th class="center">'.$langs->trans('Status').'</th><th class="center">'.$langs->trans('Default').'</th></tr>';
 
 	$dir = dol_buildpath('/lmdbreferral/core/modules/lmdbreferral/doc/');
-	$scandir = 'lmdbreferral/core/modules/lmdbreferral/doc';
 	$files = is_dir($dir) ? dol_dir_list($dir, 'files', 0, '^pdf_[a-z0-9_]+\.modules\.php$') : array();
 	$found = false;
 	foreach ($files as $fileinfo) {
