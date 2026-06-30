@@ -17,5 +17,7 @@ CREATE TABLE llx_lmdbreferral_link (
 	fk_user_modif integer,
 	fk_user_cancel integer,
 	note_private text,
+	model_pdf varchar(255),
+	last_main_doc varchar(255),
 	import_key varchar(14)
 ) ENGINE=innodb;

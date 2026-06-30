@@ -40,17 +40,18 @@ if (!lmdbreferralCanDo($user, 'read') && !lmdbreferralCanReadOwnLink($user, $obj
 $permissiontoadd = lmdbreferralCanDo($user, 'write', $object) || lmdbreferralCanDo($user, 'cancel', $object);
 $permissiontodelete = $permissiontoadd;
 $permtoedit = $permissiontoadd;
-$modulepart = 'lmdbreferral:LmdbReferralLink';
-$modulesubdir = $object->element.'/'.dol_sanitizeFileName((string) $object->ref);
+$modulepart = lmdbreferralGetLinkDocumentModulePart();
+$modulesubdir = lmdbreferralGetLinkDocumentSubdir($object);
 $upload_dir = lmdbreferralGetLinkDocumentDir($object);
 $urlsource = $_SERVER['PHP_SELF'].'?id='.(int) $object->id;
 $param = '&id='.(int) $object->id;
 $relativepathwithnofile = $modulesubdir.'/';
-$genallowed = 0;
+$genallowed = $permissiontoadd;
 $delallowed = $permissiontodelete;
-$modelselected = '';
+$modelselected = !empty($object->model_pdf) ? $object->model_pdf : getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
 
 if ($upload_dir !== '') {
+	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 	include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
 }
 

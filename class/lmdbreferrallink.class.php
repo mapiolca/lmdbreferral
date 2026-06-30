@@ -30,6 +30,8 @@ class LmdbReferralLink extends CommonObject
 	public $fk_user_author;
 	public $fk_user_modif;
 	public $fk_user_cancel;
+	public $model_pdf;
+	public $last_main_doc;
 	public $fk_project = 0;
 	public $socid = 0;
 	public $note_private;
@@ -119,14 +121,24 @@ class LmdbReferralLink extends CommonObject
 		$this->status = !empty($this->status) ? (int) $this->status : self::STATUS_ACTIVE;
 		$this->date_creation = !empty($this->date_creation) ? $this->date_creation : $now;
 		$this->fk_user_author = !empty($this->fk_user_author) ? (int) $this->fk_user_author : (int) $user->id;
+		if (empty($this->ref)) {
+			$this->ref = $this->getNextNumRef();
+			if ($this->ref === '') {
+				$this->error = 'ErrorNumberingModuleNotSetup';
+				return -1;
+			}
+		}
+		if (empty($this->model_pdf)) {
+			$this->model_pdf = getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
+		}
 
 		$this->db->begin();
 
 		$sql = 'INSERT INTO '.MAIN_DB_PREFIX.$this->table_element.' (';
-		$sql .= 'entity, ref, referrer_type, fk_soc_parrain, fk_user_parrain, fk_soc_filleul, status, date_creation, fk_user_author, note_private';
+		$sql .= 'entity, ref, referrer_type, fk_soc_parrain, fk_user_parrain, fk_soc_filleul, status, date_creation, fk_user_author, note_private, model_pdf, last_main_doc';
 		$sql .= ') VALUES (';
 		$sql .= ((int) $this->entity).', ';
-		$sql .= ($this->ref ? "'".$this->db->escape($this->ref)."'" : 'NULL').', ';
+		$sql .= "'".$this->db->escape($this->ref)."', ";
 		$sql .= "'".$this->db->escape($this->referrer_type)."', ";
 		$sql .= ($this->fk_soc_parrain > 0 ? ((int) $this->fk_soc_parrain) : 'NULL').', ';
 		$sql .= ($this->fk_user_parrain > 0 ? ((int) $this->fk_user_parrain) : 'NULL').', ';
@@ -134,7 +146,9 @@ class LmdbReferralLink extends CommonObject
 		$sql .= ((int) $this->status).', ';
 		$sql .= "'".$this->db->idate($this->date_creation)."', ";
 		$sql .= ((int) $this->fk_user_author).', ';
-		$sql .= ($this->note_private ? "'".$this->db->escape($this->note_private)."'" : 'NULL');
+		$sql .= ($this->note_private ? "'".$this->db->escape($this->note_private)."'" : 'NULL').', ';
+		$sql .= ($this->model_pdf ? "'".$this->db->escape($this->model_pdf)."'" : 'NULL').', ';
+		$sql .= ($this->last_main_doc ? "'".$this->db->escape($this->last_main_doc)."'" : 'NULL');
 		$sql .= ')';
 
 		if (!$this->db->query($sql)) {
@@ -143,10 +157,6 @@ class LmdbReferralLink extends CommonObject
 		} else {
 			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.$this->table_element);
 			$this->rowid = $this->id;
-			if (empty($this->ref)) {
-				$this->ref = 'REFERRAL-'.$this->id;
-				$this->db->query("UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref = '".$this->db->escape($this->ref)."' WHERE rowid = ".((int) $this->id));
-			}
 		}
 
 		if (!$error && !$notrigger) {
@@ -400,5 +410,93 @@ class LmdbReferralLink extends CommonObject
 
 		global $langs;
 		return $langs->trans(lmdbreferralStatusLabel($status));
+	}
+
+	/**
+	 * Initialize object with specimen values.
+	 *
+	 * @return void
+	 */
+	public function initAsSpecimen()
+	{
+		global $conf;
+
+		$this->id = 0;
+		$this->rowid = 0;
+		$this->entity = !empty($conf->entity) ? (int) $conf->entity : 1;
+		$this->ref = 'SPECIMEN';
+		$this->referrer_type = 'soc';
+		$this->fk_soc_parrain = 0;
+		$this->fk_user_parrain = 0;
+		$this->fk_soc_filleul = 0;
+		$this->status = self::STATUS_ACTIVE;
+		$this->date_creation = dol_now();
+		$this->note_private = '';
+		$this->model_pdf = getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
+	}
+
+	/**
+	 * Return next reference from configured numbering model.
+	 *
+	 * @return string
+	 */
+	public function getNextNumRef()
+	{
+		global $langs;
+
+		$langs->load('lmdbreferral@lmdbreferral');
+
+		$module = getDolGlobalString('LMDBREFERRAL_LINK_ADDON', 'mod_lmdbreferrallink_standard');
+		if (substr($module, -4) === '.php') {
+			$module = substr($module, 0, -4);
+		}
+		if (!preg_match('/^mod_lmdbreferrallink_[a-z0-9_]+$/', $module)) {
+			$module = 'mod_lmdbreferrallink_standard';
+		}
+
+		$modules = array($module);
+		if ($module !== 'mod_lmdbreferrallink_standard') {
+			$modules[] = 'mod_lmdbreferrallink_standard';
+		}
+
+		foreach ($modules as $moduleToLoad) {
+			$file = dol_buildpath('/lmdbreferral/core/modules/lmdbreferral/'.$moduleToLoad.'.php');
+			if (!is_readable($file)) {
+				continue;
+			}
+			require_once $file;
+			if (!class_exists($moduleToLoad)) {
+				continue;
+			}
+			/** @var ModeleNumRefLmdbReferralLink $obj */
+			$obj = new $moduleToLoad();
+			$numref = $obj->getNextValue($this);
+			if ($numref !== '' && $numref !== '-1' && $numref !== 0 && $numref !== -1) {
+				return (string) $numref;
+			}
+			$this->error = !empty($obj->error) ? $obj->error : 'ErrorNumberingModuleNotSetup';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Generate a document for the referral link.
+	 *
+	 * @param string          $modele Model name
+	 * @param Translate|null  $outputlangs Output language
+	 * @param int             $hidedetails Hide details
+	 * @param int             $hidedesc Hide description
+	 * @param int             $hideref Hide reference
+	 * @param array<string,mixed>|null $moreparams More parameters
+	 * @return int
+	 */
+	public function generateDocument($modele, $outputlangs, $hidedetails = 0, $hidedesc = 0, $hideref = 0, $moreparams = null)
+	{
+		if (empty($modele)) {
+			$modele = !empty($this->model_pdf) ? $this->model_pdf : getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
+		}
+
+		return $this->commonGenerateDocument('core/modules/lmdbreferral/doc/', $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
 	}
 }

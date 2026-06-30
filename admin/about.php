@@ -46,6 +46,8 @@ print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeatureThirdpar
 print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeatureUserReferrers').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeaturePropalSigned').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeatureStats').'</td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeatureDocuments').'</td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeatureNumbering').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('LmdbReferralAboutFeatureMulticompany').'</td></tr>';
 print '</table>';
 

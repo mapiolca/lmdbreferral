@@ -105,6 +105,31 @@ function lmdbreferralGetLinkDocumentDir($object)
 }
 
 /**
+ * Return native document modulepart used by FormFile for referral links.
+ *
+ * @return string
+ */
+function lmdbreferralGetLinkDocumentModulePart()
+{
+	return 'lmdbreferral:LmdbReferralLink';
+}
+
+/**
+ * Return native document relative path for a referral link.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkDocumentSubdir($object)
+{
+	if (!function_exists('dol_sanitizeFileName')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	}
+
+	return $object->element.'/'.dol_sanitizeFileName((string) $object->ref);
+}
+
+/**
  * Return the native shortlist limit used for linked agenda events.
  *
  * @return int
@@ -186,7 +211,8 @@ function lmdbreferralCanReadOwnLink($user, $link)
 function lmdbreferralCheckToken()
 {
 	$token = GETPOST('token', 'alphanohtml');
-	if (empty($token) || ($token !== newToken() && $token !== currentToken())) {
+	$currentToken = function_exists('currentToken') ? (string) currentToken() : '';
+	if (empty($token) || $currentToken === '' || !hash_equals($currentToken, $token)) {
 		accessforbidden('Bad token');
 	}
 }
@@ -206,6 +232,41 @@ function lmdbreferralGetEntitySql($element = 'lmdbreferrallink')
 	}
 
 	return (string) ((int) $conf->entity);
+}
+
+/**
+ * Return entity SQL scope for referral link numbering.
+ *
+ * @param object|null $object Optional object
+ * @return string
+ */
+function lmdbreferralGetNumberingEntitySql($object = null)
+{
+	global $conf;
+
+	$entityIds = array();
+	$scopeParts = array(
+		lmdbreferralGetEntitySql('lmdbreferrallink'),
+		lmdbreferralGetEntitySql('lmdbreferrallinknumber'),
+	);
+	if (is_object($object) && !empty($object->entity)) {
+		$scopeParts[] = (string) ((int) $object->entity);
+	}
+
+	foreach ($scopeParts as $scopePart) {
+		foreach (explode(',', $scopePart) as $entityId) {
+			$entityId = (int) trim($entityId);
+			if ($entityId > 0) {
+				$entityIds[$entityId] = $entityId;
+			}
+		}
+	}
+
+	if (empty($entityIds)) {
+		$entityIds[(int) $conf->entity] = (int) $conf->entity;
+	}
+
+	return implode(',', $entityIds);
 }
 
 /**

@@ -19,6 +19,15 @@ if (!isModEnabled('lmdbreferral')) {
 
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
+$confirm = GETPOST('confirm', 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
+if ($sortfield === '') {
+	$sortfield = 'name';
+}
+if ($sortorder === '') {
+	$sortorder = 'ASC';
+}
 
 $object = new LmdbReferralLink($db);
 if ($id > 0 && $object->fetch($id) <= 0) {
@@ -34,10 +43,25 @@ if (!lmdbreferralCanDo($user, 'read') && !lmdbreferralCanReadOwnLink($user, $obj
 $permissiontoadd = lmdbreferralCanDo($user, 'write', $object);
 $permissiontocancel = lmdbreferralCanDo($user, 'cancel', $object);
 $permissiontodelete = lmdbreferralCanDo($user, 'delete', $object);
+$permtoedit = $permissiontoadd;
 $socid = (int) $object->fk_soc_filleul;
 $service = new LmdbReferralService($db);
 $linkLocked = $service->isLockedBySignedProposal((int) $object->fk_soc_filleul);
 $linkTransformed = $service->isLinkTransformed((int) $object->id);
+$upload_dir = lmdbreferralGetLinkDocumentDir($object);
+$urlsource = $_SERVER['PHP_SELF'].'?id='.(int) $object->id;
+$modulepart = lmdbreferralGetLinkDocumentModulePart();
+$modulesubdir = lmdbreferralGetLinkDocumentSubdir($object);
+$param = '&id='.(int) $object->id;
+$relativepathwithnofile = $modulesubdir.'/';
+$modelselected = !empty($object->model_pdf) ? $object->model_pdf : getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
+$genallowed = $permissiontoadd;
+$delallowed = $permissiontoadd || $permissiontocancel || $permissiontodelete;
+
+if ($upload_dir !== '') {
+	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+	include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
+}
 
 if ($action === 'cancel') {
 	if (!$permissiontocancel) {
@@ -131,13 +155,8 @@ print '<div class="fichecenter">';
 print '<div class="fichehalfleft">';
 print '<a name="builddoc"></a>';
 
-$upload_dir = lmdbreferralGetLinkDocumentDir($object);
-$urlsource = $_SERVER['PHP_SELF'].'?id='.(int) $object->id;
-$modulepart = 'lmdbreferral:LmdbReferralLink';
-$modulesubdir = $object->element.'/'.dol_sanitizeFileName($object->ref);
-$delallowed = $permissiontoadd || $permissiontocancel;
 if ($upload_dir !== '') {
-	print $formfile->showdocuments($modulepart, $modulesubdir, $upload_dir, $urlsource, 0, $delallowed, '', 0, 0, 0, 28, 0, 'id='.(int) $object->id, '', '', $langs->defaultlang, '', $object);
+	print $formfile->showdocuments($modulepart, $modulesubdir, $upload_dir, $urlsource, $genallowed, $delallowed, $modelselected, 0, 0, 0, 28, 0, 'id='.(int) $object->id, '', '', $langs->defaultlang, '', $object);
 } else {
 	print '<div class="opacitymedium">'.$langs->trans('NotAvailable').'</div>';
 }
