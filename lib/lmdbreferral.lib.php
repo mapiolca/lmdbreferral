@@ -28,7 +28,7 @@ function lmdbreferralAdminPrepareHead()
 
 	return array(
 		array(dol_buildpath('/lmdbreferral/admin/setup.php', 1), $langs->trans('Settings'), 'settings'),
-		array(dol_buildpath('/lmdbreferral/admin/compatibility.php', 1), $langs->trans('Compatibility'), 'compatibility'),
+		array(dol_buildpath('/lmdbreferral/admin/compatibility.php', 1), $langs->trans('LmdbReferralCompatibilityShort'), 'compatibility'),
 		array(dol_buildpath('/lmdbreferral/admin/about.php', 1), $langs->trans('About'), 'about'),
 	);
 }
@@ -609,4 +609,106 @@ function lmdbreferralFormatSignedProposalRefs($signedCount, $propalRefs)
 	}
 
 	return dol_escape_htmltag($refs);
+}
+
+/**
+ * Print individual statistics for a referral link.
+ *
+ * @param array{
+ *     is_transformed?: bool,
+ *     is_locked?: bool,
+ *     signed_propals?: int,
+ *     amount_ht?: float,
+ *     amount_ttc?: float,
+ *     average_basket_ht?: float,
+ *     first_signature_date?: string,
+ *     last_signature_date?: string,
+ *     days_to_first_signature?: int|null,
+ *     age_days?: int
+ * } $stats Link statistics
+ * @return void
+ */
+function lmdbreferralPrintLinkStatsBlock(array $stats)
+{
+	global $langs;
+
+	$isTransformed = !empty($stats['is_transformed']);
+	$isLocked = !empty($stats['is_locked']);
+	$daysToFirstSignature = array_key_exists('days_to_first_signature', $stats) ? $stats['days_to_first_signature'] : null;
+
+	$transformationLabel = $isTransformed ? $langs->trans('LmdbReferralConverted') : $langs->trans('LmdbReferralToFollow');
+	$transformationCss = $isTransformed ? 'badge badge-status4 badge-status' : 'badge badge-status0';
+	$lockLabel = $isLocked ? $langs->trans('LmdbReferralCommercialLockActive') : $langs->trans('LmdbReferralCommercialLockInactive');
+	$lockCss = $isLocked ? 'badge badge-status4 badge-status' : 'badge badge-status0';
+
+	print '<div class="fichecenter">';
+	print '<table class="border tableforfield centpercent">';
+	print '<tr class="liste_titre"><td colspan="4">'.$langs->trans('LmdbReferralLinkStats').'</td></tr>';
+	print '<tr>';
+	print '<td class="titlefield">'.$langs->trans('LmdbReferralLinkConversionStatus').'</td>';
+	print '<td><span class="'.$transformationCss.'">'.dol_escape_htmltag($transformationLabel).'</span></td>';
+	print '<td>'.$langs->trans('LmdbReferralSignedPropalsCount').'</td>';
+	print '<td class="right">'.((int) ($stats['signed_propals'] ?? 0)).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralGeneratedCAHT').'</td>';
+	print '<td class="right">'.price((float) ($stats['amount_ht'] ?? 0.0)).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralSignedAmountTTC').'</td>';
+	print '<td class="right">'.price((float) ($stats['amount_ttc'] ?? 0.0)).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralAverageBasketHT').'</td>';
+	print '<td class="right">'.price((float) ($stats['average_basket_ht'] ?? 0.0)).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralFirstSignatureDate').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDate((string) ($stats['first_signature_date'] ?? '')).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralLastSignatureDate').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDate((string) ($stats['last_signature_date'] ?? '')).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralDaysToFirstSignature').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDays($daysToFirstSignature).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralLinkAgeDays').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDays((int) ($stats['age_days'] ?? 0)).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralCommercialLockStatus').'</td>';
+	print '<td><span class="'.$lockCss.'">'.dol_escape_htmltag($lockLabel).'</span></td>';
+	print '</tr>';
+	print '</table>';
+	print '</div>';
+	print '<br>';
+}
+
+/**
+ * Format an optional SQL date for link statistics.
+ *
+ * @param string $date SQL date
+ * @return string
+ */
+function lmdbreferralFormatLinkStatsDate($date)
+{
+	global $db, $langs;
+
+	if ($date === '') {
+		return '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>';
+	}
+
+	return dol_escape_htmltag(dol_print_date($db->jdate($date), 'dayhour'));
+}
+
+/**
+ * Format an optional day count for link statistics.
+ *
+ * @param int|null $days Number of days
+ * @return string
+ */
+function lmdbreferralFormatLinkStatsDays($days)
+{
+	global $langs;
+
+	if ($days === null) {
+		return '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>';
+	}
+
+	return ((int) $days).' '.$langs->trans('Days');
 }

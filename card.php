@@ -10,6 +10,7 @@ require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
 dol_include_once('/lmdbreferral/class/lmdbreferrallink.class.php');
 dol_include_once('/lmdbreferral/class/lmdbreferralservice.class.php');
+dol_include_once('/lmdbreferral/class/lmdbreferralstats.class.php');
 
 $langs->loadLangs(array('companies', 'propal', 'agenda', 'lmdbreferral@lmdbreferral'));
 
@@ -48,6 +49,8 @@ $socid = (int) $object->fk_soc_filleul;
 $service = new LmdbReferralService($db);
 $linkLocked = $service->isLockedBySignedProposal((int) $object->fk_soc_filleul);
 $linkTransformed = $service->isLinkTransformed((int) $object->id);
+$statsService = new LmdbReferralStats($db);
+$linkStats = $statsService->getLinkStats($user, $object);
 $upload_dir = lmdbreferralGetLinkDocumentDir($object);
 $urlsource = $_SERVER['PHP_SELF'].'?id='.(int) $object->id;
 $modulepart = lmdbreferralGetLinkDocumentModulePart();
@@ -150,6 +153,8 @@ if ($permissiontodelete && !$linkTransformed) {
 }
 
 print dol_get_fiche_end();
+
+lmdbreferralPrintLinkStatsBlock($linkStats);
 
 print '<div class="fichecenter">';
 print '<div class="fichehalfleft">';
