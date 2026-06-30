@@ -3,8 +3,10 @@
 
 require '../../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
+dol_include_once('/lmdbreferral/class/lmdbreferrallink.class.php');
 
 $langs->loadLangs(array('admin', 'users', 'lmdbreferral@lmdbreferral'));
 
@@ -14,6 +16,49 @@ if (!lmdbreferralCanDo($user, 'setup')) {
 
 $form = new Form($db);
 $action = GETPOST('action', 'aZ09');
+$value = GETPOST('value', 'alphanohtml');
+$pageToken = '';
+
+if (in_array($action, array('setmodule', 'updateMask', 'setdocmodel', 'delmodel', 'setdoc'), true)) {
+	lmdbreferralCheckToken();
+}
+
+if ($action === 'setmodule' && $value !== '') {
+	$result = lmdbreferral_set_numbering_module($value);
+	if ($result > 0) {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
+	header('Location: setup.php');
+	exit;
+}
+
+if ($action === 'updateMask') {
+	$maskconst = GETPOST('maskconst', 'alphanohtml');
+	$maskvalue = GETPOST('maskvalue', 'nohtml');
+	if ($maskconst === 'LMDBREFERRAL_LINK_ADVANCED_MASK') {
+		$result = dolibarr_set_const($db, $maskconst, $maskvalue, 'chaine', 0, '', (int) $conf->entity);
+		if ($result > 0) {
+			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
+	}
+	header('Location: setup.php');
+	exit;
+}
+
+if (in_array($action, array('setdocmodel', 'delmodel', 'setdoc'), true) && $value !== '') {
+	$result = lmdbreferral_update_document_model($action, $value);
+	if ($result > 0) {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
+	header('Location: setup.php');
+	exit;
+}
 
 if ($action === 'save') {
 	lmdbreferralCheckToken();
@@ -87,14 +132,21 @@ if ($action === 'save') {
 	exit;
 }
 
+$pageToken = newToken();
+
 llxHeader('', $langs->trans('LmdbReferralSetup'));
 $linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php?search_keyword='.urlencode('lmdbreferral').'">'.$langs->trans('BackToModuleList').'</a>';
 print load_fiche_titre($langs->trans('LmdbReferralSetup'), $linkback, 'fa-handshake');
 $head = lmdbreferralAdminPrepareHead();
 print dol_get_fiche_head($head, 'settings', $langs->trans('LmdbReferralSetup'), -1, 'lmdbreferral@lmdbreferral');
 
+lmdbreferral_print_numbering_models($pageToken);
+print '<br>';
+lmdbreferral_print_document_models($pageToken);
+print '<br>';
+
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="token" value="'.dol_escape_htmltag($pageToken).'">';
 print '<input type="hidden" name="action" value="save">';
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><th colspan="2">'.$langs->trans('LmdbReferralBusinessRules').'</th></tr>';
@@ -198,4 +250,263 @@ function lmdbreferral_print_setup_users()
 		print ajax_combobox('eligible_users');
 	}
 	print '</td></tr>';
+}
+
+/**
+ * Persist numbering model selection.
+ *
+ * @param string $classname Numbering class
+ * @return int
+ */
+function lmdbreferral_set_numbering_module($classname)
+{
+	global $db, $conf;
+
+	if (!preg_match('/^mod_lmdbreferrallink_[a-z0-9_]+$/', $classname)) {
+		return -1;
+	}
+
+	$file = dol_buildpath('/lmdbreferral/core/modules/lmdbreferral/'.$classname.'.php');
+	if (!is_readable($file)) {
+		return -1;
+	}
+	require_once $file;
+	if (!class_exists($classname)) {
+		return -1;
+	}
+
+	$sample = new LmdbReferralLink($db);
+	$sample->initAsSpecimen();
+	$module = new $classname();
+	if (method_exists($module, 'canBeActivated') && !$module->canBeActivated($sample)) {
+		return -1;
+	}
+
+	return dolibarr_set_const($db, 'LMDBREFERRAL_LINK_ADDON', $classname, 'chaine', 0, '', (int) $conf->entity);
+}
+
+/**
+ * Update document model activation/default state.
+ *
+ * @param string $action Action code
+ * @param string $value Model name
+ * @return int
+ */
+function lmdbreferral_update_document_model($action, $value)
+{
+	global $db, $conf;
+
+	$type = 'lmdbreferrallink';
+	$label = 'Standard';
+
+	if (!preg_match('/^[a-z0-9_]+$/', $value)) {
+		return -1;
+	}
+
+	if ($action === 'delmodel') {
+		$result = delDocumentModel($value, $type);
+		if ($result > 0 && getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF') === $value) {
+			dolibarr_del_const($db, 'LMDBREFERRAL_LINK_ADDON_PDF', (int) $conf->entity);
+		}
+
+		return $result;
+	}
+
+	$result = 1;
+	if (!lmdbreferral_document_model_is_active($value)) {
+		$result = lmdbreferral_normalize_document_model($value);
+		if ($result === 0) {
+			$result = addDocumentModel($value, $type, $label);
+		}
+	}
+	if ($result <= 0) {
+		return -1;
+	}
+	if ($action === 'setdoc') {
+		return dolibarr_set_const($db, 'LMDBREFERRAL_LINK_ADDON_PDF', $value, 'chaine', 0, '', (int) $conf->entity);
+	}
+
+	return 1;
+}
+
+/**
+ * Tell if a document model is active for current entity.
+ *
+ * @param string $name Model name
+ * @return bool
+ */
+function lmdbreferral_document_model_is_active($name)
+{
+	global $db, $conf;
+
+	$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'document_model';
+	$sql .= " WHERE nom = '".$db->escape($name)."'";
+	$sql .= " AND type = 'lmdbreferrallink'";
+	$sql .= ' AND entity = '.((int) $conf->entity);
+	$sql .= " AND (description IS NULL OR description = '')";
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return false;
+	}
+	$active = (bool) $db->fetch_object($resql);
+	$db->free($resql);
+
+	return $active;
+}
+
+/**
+ * Normalize a PHP document model row for the current entity.
+ *
+ * @param string $name Model name
+ * @return int 1 if existing row was normalized, 0 if no row exists, -1 on error
+ */
+function lmdbreferral_normalize_document_model($name)
+{
+	global $db, $conf;
+
+	$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'document_model';
+	$sql .= " WHERE nom = '".$db->escape($name)."'";
+	$sql .= " AND type = 'lmdbreferrallink'";
+	$sql .= ' AND entity = '.((int) $conf->entity);
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return -1;
+	}
+	$exists = (bool) $db->fetch_object($resql);
+	$db->free($resql);
+
+	if (!$exists) {
+		return 0;
+	}
+
+	$sql = 'UPDATE '.MAIN_DB_PREFIX.'document_model';
+	$sql .= " SET libelle = 'Standard', description = NULL";
+	$sql .= " WHERE nom = '".$db->escape($name)."'";
+	$sql .= " AND type = 'lmdbreferrallink'";
+	$sql .= ' AND entity = '.((int) $conf->entity);
+
+	return $db->query($sql) ? 1 : -1;
+}
+
+/**
+ * Print numbering models block.
+ *
+ * @param string $token CSRF token
+ * @return void
+ */
+function lmdbreferral_print_numbering_models($token)
+{
+	global $db, $langs;
+
+	print load_fiche_titre($langs->trans('LmdbReferralNumberingModels'), '', 'hashtag');
+	print '<div class="underbanner opacitymedium">'.$langs->trans('LmdbReferralNumberingModelsHelp').'</div>';
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><th>'.$langs->trans('Name').'</th><th>'.$langs->trans('Description').'</th><th>'.$langs->trans('Example').'</th><th class="center">'.$langs->trans('Status').'</th></tr>';
+
+	$current = getDolGlobalString('LMDBREFERRAL_LINK_ADDON', 'mod_lmdbreferrallink_standard');
+	$dir = dol_buildpath('/lmdbreferral/core/modules/lmdbreferral/');
+	$files = is_dir($dir) ? dol_dir_list($dir, 'files', 0, '^mod_lmdbreferrallink_[a-z0-9_]+\.php$') : array();
+	$found = false;
+	foreach ($files as $fileinfo) {
+		$file = $fileinfo['name'];
+		$classname = substr($file, 0, -4);
+		require_once $dir.$file;
+		if (!class_exists($classname)) {
+			continue;
+		}
+		$module = new $classname();
+		$sample = new LmdbReferralLink($db);
+		$sample->initAsSpecimen();
+		$canBeActivated = !method_exists($module, 'canBeActivated') || $module->canBeActivated($sample);
+		$found = true;
+
+		print '<tr class="oddeven">';
+		print '<td class="nowraponall">'.dol_escape_htmltag(!empty($module->name) ? $module->name : $classname).'<br><span class="opacitymedium">'.dol_escape_htmltag($classname).'</span></td>';
+		print '<td class="small">'.$module->info($langs).'</td>';
+		print '<td class="small">'.dol_escape_htmltag((string) $module->getExample()).'</td>';
+		print '<td class="center">';
+		if ($current === $classname) {
+			print img_picto($langs->trans('Enabled'), 'switch_on');
+		} elseif ($canBeActivated) {
+			$url = $_SERVER['PHP_SELF'].'?action=setmodule&value='.urlencode($classname).'&token='.urlencode($token);
+			print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disabled'), 'switch_off').'</a>';
+		} else {
+			print img_picto($langs->trans('Disabled'), 'switch_off');
+		}
+		print '</td>';
+		print '</tr>';
+	}
+	if (!$found) {
+		print '<tr class="oddeven"><td colspan="4"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+	}
+	print '</table>';
+	print '</div>';
+}
+
+/**
+ * Print document models block.
+ *
+ * @param string $token CSRF token
+ * @return void
+ */
+function lmdbreferral_print_document_models($token)
+{
+	global $db, $langs;
+
+	$default = getDolGlobalString('LMDBREFERRAL_LINK_ADDON_PDF', 'standard_lmdbreferrallink');
+
+	print load_fiche_titre($langs->trans('LmdbReferralDocumentModels'), '', 'pdf');
+	print '<div class="underbanner opacitymedium">'.$langs->trans('LmdbReferralDocumentModelsHelp').'</div>';
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><th>'.$langs->trans('Name').'</th><th>'.$langs->trans('Description').'</th><th class="center">'.$langs->trans('Type').'</th><th class="center">'.$langs->trans('Status').'</th><th class="center">'.$langs->trans('Default').'</th></tr>';
+
+	$dir = dol_buildpath('/lmdbreferral/core/modules/lmdbreferral/doc/');
+	$files = is_dir($dir) ? dol_dir_list($dir, 'files', 0, '^pdf_[a-z0-9_]+\.modules\.php$') : array();
+	$found = false;
+	foreach ($files as $fileinfo) {
+		$file = $fileinfo['name'];
+		$name = substr($file, 4, -12);
+		$classname = substr($file, 0, -12);
+		require_once $dir.$file;
+		if (!class_exists($classname)) {
+			continue;
+		}
+		$model = new $classname($db);
+		$modelName = !empty($model->name) ? $model->name : $name;
+		$isActive = lmdbreferral_document_model_is_active($modelName);
+		$isDefault = ($default === $modelName);
+		$found = true;
+
+		print '<tr class="oddeven">';
+		print '<td class="nowraponall">'.dol_escape_htmltag($modelName).'</td>';
+		print '<td class="small">'.dol_escape_htmltag(!empty($model->description) ? $model->description : '').'</td>';
+		print '<td class="center">'.dol_escape_htmltag(!empty($model->type) ? $model->type : '').'</td>';
+		print '<td class="center">';
+		if ($isActive) {
+			$url = $_SERVER['PHP_SELF'].'?action=delmodel&value='.urlencode($modelName).'&token='.urlencode($token);
+			print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Enabled'), 'switch_on').'</a>';
+		} else {
+			$url = $_SERVER['PHP_SELF'].'?action=setdocmodel&value='.urlencode($modelName).'&token='.urlencode($token);
+			print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disabled'), 'switch_off').'</a>';
+		}
+		print '</td>';
+		print '<td class="center">';
+		if ($isDefault) {
+			print img_picto($langs->trans('Default'), 'on');
+		} elseif ($isActive) {
+			$url = $_SERVER['PHP_SELF'].'?action=setdoc&value='.urlencode($modelName).'&token='.urlencode($token);
+			print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('SetDefault'), 'switch_on').'</a>';
+		} else {
+			print '&nbsp;';
+		}
+		print '</td>';
+		print '</tr>';
+	}
+	if (!$found) {
+		print '<tr class="oddeven"><td colspan="5"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+	}
+	print '</table>';
+	print '</div>';
 }

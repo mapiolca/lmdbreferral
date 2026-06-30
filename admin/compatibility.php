@@ -3,6 +3,15 @@
 
 require '../../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/commondocgenerator.class.php')) {
+	require_once DOL_DOCUMENT_ROOT.'/core/class/commondocgenerator.class.php';
+}
+if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/commonnumrefgenerator.class.php')) {
+	require_once DOL_DOCUMENT_ROOT.'/core/class/commonnumrefgenerator.class.php';
+}
+if (is_readable(DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php')) {
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+}
 dol_include_once('/lmdbreferral/lib/lmdbreferral.lib.php');
 dol_include_once('/lmdbreferral/class/lmdbreferralcompatibility.class.php');
 dol_include_once('/comm/propal/class/propal.class.php');

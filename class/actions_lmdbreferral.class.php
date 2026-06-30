@@ -52,6 +52,14 @@ class ActionsLmdbReferral
 						'enable' => '! empty($conf->lmdbreferral->enabled)',
 						'input' => array('global' => array('showhide' => true, 'hide' => true, 'del' => true)),
 					),
+					'lmdbreferrallinknumber' => array(
+						'type' => 'objectnumber',
+						'icon' => 'hashtag',
+						'lang' => 'lmdbreferral@lmdbreferral',
+						'tooltip' => 'LmdbReferralLinkNumberSharingInfo',
+						'enable' => '! empty($conf->lmdbreferral->enabled)',
+						'input' => array('global' => array('showhide' => true, 'hide' => true, 'del' => true)),
+					),
 					'lmdbreferralevent' => array(
 						'type' => 'element',
 						'icon' => 'history',
@@ -71,6 +79,7 @@ class ActionsLmdbReferral
 				),
 				'sharingmodulename' => array(
 					'lmdbreferrallink' => 'lmdbreferral',
+					'lmdbreferrallinknumber' => 'lmdbreferral',
 					'lmdbreferralevent' => 'lmdbreferral',
 					'lmdbreferralusereligibility' => 'lmdbreferral',
 				),

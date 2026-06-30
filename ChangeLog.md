@@ -4,6 +4,8 @@
 
 - Synchronise les devis déjà signés et les devis signés après attribution dans le lien de parrainage actif du tiers filleul.
 - Ajoute une bannière native Dolibarr sur les factures des tiers filleuls avec un lien de parrainage actif.
+- Ajoute un modèle PDF standard générable pour les liens de parrainage.
+- Ajoute les modèles de numérotation `standard` et `advanced` pour les références des liens de parrainage.
 
 ## 1.0.0
 

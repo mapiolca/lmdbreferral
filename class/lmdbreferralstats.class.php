@@ -145,6 +145,107 @@ class LmdbReferralStats
 	}
 
 	/**
+	 * Return statistics for one referral link.
+	 *
+	 * @param User             $user Current user
+	 * @param LmdbReferralLink $link Referral link
+	 * @return array{
+	 *     is_transformed: bool,
+	 *     is_locked: bool,
+	 *     signed_propals: int,
+	 *     amount_ht: float,
+	 *     amount_ttc: float,
+	 *     average_basket_ht: float,
+	 *     first_signature_date: string,
+	 *     last_signature_date: string,
+	 *     days_to_first_signature: int|null,
+	 *     age_days: int,
+	 *     propals: array<int,array{fk_propal:int,ref:string,amount_ht:float,amount_ttc:float,date_event:string}>
+	 * }
+	 */
+	public function getLinkStats($user, $link)
+	{
+		$out = array(
+			'is_transformed' => false,
+			'is_locked' => false,
+			'signed_propals' => 0,
+			'amount_ht' => 0.0,
+			'amount_ttc' => 0.0,
+			'average_basket_ht' => 0.0,
+			'first_signature_date' => '',
+			'last_signature_date' => '',
+			'days_to_first_signature' => null,
+			'age_days' => $this->getDateDiffInDays($this->dateToTimestamp(!empty($link->date_creation) ? $link->date_creation : 0), dol_now()),
+			'propals' => array(),
+		);
+
+		$linkId = !empty($link->id) ? (int) $link->id : (!empty($link->rowid) ? (int) $link->rowid : 0);
+		if ($linkId <= 0) {
+			return $out;
+		}
+		if (!lmdbreferralCanDo($user, 'read') && !lmdbreferralCanReadOwnLink($user, $link)) {
+			$this->error = 'NotEnoughPermissions';
+			return $out;
+		}
+
+		$where = array(
+			'e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')',
+			'e.fk_lmdbreferral_link = '.$linkId,
+			"e.event_type = 'propal_signed'",
+		);
+
+		$sql = 'SELECT COUNT(DISTINCT e.fk_propal) as signed_propals, SUM(e.amount_ht) as amount_ht, SUM(e.amount_ttc) as amount_ttc,';
+		$sql .= ' MIN(e.date_event) as first_signature_date, MAX(e.date_event) as last_signature_date';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_event as e';
+		$sql .= ' WHERE '.implode(' AND ', $where);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return $out;
+		}
+		if ($obj = $this->db->fetch_object($resql)) {
+			$out['signed_propals'] = (int) $obj->signed_propals;
+			$out['amount_ht'] = (float) $obj->amount_ht;
+			$out['amount_ttc'] = (float) $obj->amount_ttc;
+			$out['first_signature_date'] = !empty($obj->first_signature_date) ? (string) $obj->first_signature_date : '';
+			$out['last_signature_date'] = !empty($obj->last_signature_date) ? (string) $obj->last_signature_date : '';
+		}
+		$this->db->free($resql);
+
+		$out['is_transformed'] = $out['signed_propals'] > 0;
+		$out['is_locked'] = $out['is_transformed'];
+		$out['average_basket_ht'] = $out['signed_propals'] > 0 ? ($out['amount_ht'] / $out['signed_propals']) : 0.0;
+		if ($out['first_signature_date'] !== '' && !empty($link->date_creation)) {
+			$out['days_to_first_signature'] = $this->getDateDiffInDays($this->dateToTimestamp($link->date_creation), $this->dateToTimestamp($out['first_signature_date']));
+		}
+
+		$sql = 'SELECT e.fk_propal, e.amount_ht, e.amount_ttc, e.date_event, p.ref as propal_ref';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_event as e';
+		$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'propal as p ON p.rowid = e.fk_propal';
+		$sql .= ' WHERE '.implode(' AND ', $where);
+		$sql .= ' ORDER BY e.date_event ASC, e.rowid ASC';
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return $out;
+		}
+		while ($obj = $this->db->fetch_object($resql)) {
+			$propalId = !empty($obj->fk_propal) ? (int) $obj->fk_propal : 0;
+			$ref = !empty($obj->propal_ref) ? (string) $obj->propal_ref : ($propalId > 0 ? (string) $propalId : '');
+			$out['propals'][] = array(
+				'fk_propal' => $propalId,
+				'ref' => $ref,
+				'amount_ht' => (float) $obj->amount_ht,
+				'amount_ttc' => (float) $obj->amount_ttc,
+				'date_event' => !empty($obj->date_event) ? (string) $obj->date_event : '',
+			);
+		}
+		$this->db->free($resql);
+
+		return $out;
+	}
+
+	/**
 	 * Return funnel data.
 	 *
 	 * @param User                $user    Current user
@@ -562,6 +663,40 @@ class LmdbReferralStats
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Convert a Dolibarr SQL date or timestamp to a timestamp.
+	 *
+	 * @param mixed $date Date value
+	 * @return int
+	 */
+	private function dateToTimestamp($date)
+	{
+		if (empty($date)) {
+			return 0;
+		}
+		if (is_numeric($date)) {
+			return (int) $date;
+		}
+
+		return (int) $this->db->jdate($date);
+	}
+
+	/**
+	 * Return a non-negative day difference.
+	 *
+	 * @param int $startTimestamp Start timestamp
+	 * @param int $endTimestamp End timestamp
+	 * @return int
+	 */
+	private function getDateDiffInDays($startTimestamp, $endTimestamp)
+	{
+		if ($startTimestamp <= 0 || $endTimestamp <= 0) {
+			return 0;
+		}
+
+		return max(0, (int) floor(($endTimestamp - $startTimestamp) / 86400));
 	}
 
 	/**

@@ -28,7 +28,7 @@ function lmdbreferralAdminPrepareHead()
 
 	return array(
 		array(dol_buildpath('/lmdbreferral/admin/setup.php', 1), $langs->trans('Settings'), 'settings'),
-		array(dol_buildpath('/lmdbreferral/admin/compatibility.php', 1), $langs->trans('Compatibility'), 'compatibility'),
+		array(dol_buildpath('/lmdbreferral/admin/compatibility.php', 1), $langs->trans('LmdbReferralCompatibilityShort'), 'compatibility'),
 		array(dol_buildpath('/lmdbreferral/admin/about.php', 1), $langs->trans('About'), 'about'),
 	);
 }
@@ -84,24 +84,50 @@ function lmdbreferralGetLinkDocumentDir($object)
 	}
 
 	$upload_dir = '';
+	$moduleOutput = '';
 	if (function_exists('getMultidirOutput')) {
-		$upload_dir = (string) getMultidirOutput($object, 'lmdbreferral', 1);
+		$moduleOutput = (string) getMultidirOutput($object, 'lmdbreferral', 0);
 	}
 
-	if (empty($upload_dir)) {
+	if ($moduleOutput === '' || strpos($moduleOutput, 'error-') === 0) {
 		$objectEntity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-		$moduleOutput = '';
 		if (!empty($conf->lmdbreferral->multidir_output[$objectEntity])) {
 			$moduleOutput = (string) $conf->lmdbreferral->multidir_output[$objectEntity];
 		} elseif (!empty($conf->lmdbreferral->dir_output)) {
 			$moduleOutput = (string) $conf->lmdbreferral->dir_output;
 		}
-		if ($moduleOutput !== '') {
-			$upload_dir = $moduleOutput.'/'.$object->element.'/'.dol_sanitizeFileName((string) $object->ref);
-		}
+	}
+
+	if ($moduleOutput !== '' && strpos($moduleOutput, 'error-') !== 0) {
+		$upload_dir = rtrim($moduleOutput, '/').'/'.lmdbreferralGetLinkDocumentSubdir($object);
 	}
 
 	return $upload_dir;
+}
+
+/**
+ * Return native document modulepart used by FormFile for referral links.
+ *
+ * @return string
+ */
+function lmdbreferralGetLinkDocumentModulePart()
+{
+	return 'lmdbreferral';
+}
+
+/**
+ * Return native document relative path for a referral link.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkDocumentSubdir($object)
+{
+	if (!function_exists('dol_sanitizeFileName')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	}
+
+	return $object->element.'/'.dol_sanitizeFileName((string) $object->ref);
 }
 
 /**
@@ -186,7 +212,8 @@ function lmdbreferralCanReadOwnLink($user, $link)
 function lmdbreferralCheckToken()
 {
 	$token = GETPOST('token', 'alphanohtml');
-	if (empty($token) || ($token !== newToken() && $token !== currentToken())) {
+	$currentToken = function_exists('currentToken') ? (string) currentToken() : '';
+	if (empty($token) || $currentToken === '' || !hash_equals($currentToken, $token)) {
 		accessforbidden('Bad token');
 	}
 }
@@ -206,6 +233,41 @@ function lmdbreferralGetEntitySql($element = 'lmdbreferrallink')
 	}
 
 	return (string) ((int) $conf->entity);
+}
+
+/**
+ * Return entity SQL scope for referral link numbering.
+ *
+ * @param object|null $object Optional object
+ * @return string
+ */
+function lmdbreferralGetNumberingEntitySql($object = null)
+{
+	global $conf;
+
+	$entityIds = array();
+	$scopeParts = array(
+		lmdbreferralGetEntitySql('lmdbreferrallink'),
+		lmdbreferralGetEntitySql('lmdbreferrallinknumber'),
+	);
+	if (is_object($object) && !empty($object->entity)) {
+		$scopeParts[] = (string) ((int) $object->entity);
+	}
+
+	foreach ($scopeParts as $scopePart) {
+		foreach (explode(',', $scopePart) as $entityId) {
+			$entityId = (int) trim($entityId);
+			if ($entityId > 0) {
+				$entityIds[$entityId] = $entityId;
+			}
+		}
+	}
+
+	if (empty($entityIds)) {
+		$entityIds[(int) $conf->entity] = (int) $conf->entity;
+	}
+
+	return implode(',', $entityIds);
 }
 
 /**
@@ -547,4 +609,106 @@ function lmdbreferralFormatSignedProposalRefs($signedCount, $propalRefs)
 	}
 
 	return dol_escape_htmltag($refs);
+}
+
+/**
+ * Print individual statistics for a referral link.
+ *
+ * @param array{
+ *     is_transformed?: bool,
+ *     is_locked?: bool,
+ *     signed_propals?: int,
+ *     amount_ht?: float,
+ *     amount_ttc?: float,
+ *     average_basket_ht?: float,
+ *     first_signature_date?: string,
+ *     last_signature_date?: string,
+ *     days_to_first_signature?: int|null,
+ *     age_days?: int
+ * } $stats Link statistics
+ * @return void
+ */
+function lmdbreferralPrintLinkStatsBlock(array $stats)
+{
+	global $langs;
+
+	$isTransformed = !empty($stats['is_transformed']);
+	$isLocked = !empty($stats['is_locked']);
+	$daysToFirstSignature = array_key_exists('days_to_first_signature', $stats) ? $stats['days_to_first_signature'] : null;
+
+	$transformationLabel = $isTransformed ? $langs->trans('LmdbReferralConverted') : $langs->trans('LmdbReferralToFollow');
+	$transformationCss = $isTransformed ? 'badge badge-status4 badge-status' : 'badge badge-status0';
+	$lockLabel = $isLocked ? $langs->trans('LmdbReferralCommercialLockActive') : $langs->trans('LmdbReferralCommercialLockInactive');
+	$lockCss = $isLocked ? 'badge badge-status4 badge-status' : 'badge badge-status0';
+
+	print '<div class="fichecenter">';
+	print '<table class="border tableforfield centpercent">';
+	print '<tr class="liste_titre"><td colspan="4">'.$langs->trans('LmdbReferralLinkStats').'</td></tr>';
+	print '<tr>';
+	print '<td class="titlefield">'.$langs->trans('LmdbReferralLinkConversionStatus').'</td>';
+	print '<td><span class="'.$transformationCss.'">'.dol_escape_htmltag($transformationLabel).'</span></td>';
+	print '<td>'.$langs->trans('LmdbReferralSignedPropalsCount').'</td>';
+	print '<td class="right">'.((int) ($stats['signed_propals'] ?? 0)).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralGeneratedCAHT').'</td>';
+	print '<td class="right">'.price((float) ($stats['amount_ht'] ?? 0.0)).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralSignedAmountTTC').'</td>';
+	print '<td class="right">'.price((float) ($stats['amount_ttc'] ?? 0.0)).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralAverageBasketHT').'</td>';
+	print '<td class="right">'.price((float) ($stats['average_basket_ht'] ?? 0.0)).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralFirstSignatureDate').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDate((string) ($stats['first_signature_date'] ?? '')).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralLastSignatureDate').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDate((string) ($stats['last_signature_date'] ?? '')).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralDaysToFirstSignature').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDays($daysToFirstSignature).'</td>';
+	print '</tr>';
+	print '<tr>';
+	print '<td>'.$langs->trans('LmdbReferralLinkAgeDays').'</td>';
+	print '<td>'.lmdbreferralFormatLinkStatsDays((int) ($stats['age_days'] ?? 0)).'</td>';
+	print '<td>'.$langs->trans('LmdbReferralCommercialLockStatus').'</td>';
+	print '<td><span class="'.$lockCss.'">'.dol_escape_htmltag($lockLabel).'</span></td>';
+	print '</tr>';
+	print '</table>';
+	print '</div>';
+	print '<br>';
+}
+
+/**
+ * Format an optional SQL date for link statistics.
+ *
+ * @param string $date SQL date
+ * @return string
+ */
+function lmdbreferralFormatLinkStatsDate($date)
+{
+	global $db, $langs;
+
+	if ($date === '') {
+		return '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>';
+	}
+
+	return dol_escape_htmltag(dol_print_date($db->jdate($date), 'dayhour'));
+}
+
+/**
+ * Format an optional day count for link statistics.
+ *
+ * @param int|null $days Number of days
+ * @return string
+ */
+function lmdbreferralFormatLinkStatsDays($days)
+{
+	global $langs;
+
+	if ($days === null) {
+		return '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>';
+	}
+
+	return ((int) $days).' '.$langs->trans('Days');
 }

@@ -68,6 +68,20 @@ class LmdbReferralCompatibility
 				'min_php' => self::MIN_PHP_VERSION,
 				'checks' => array('getEntity'),
 			),
+			'document_models' => array(
+				'label' => 'LmdbReferralCompatibilityFeatureDocumentModels',
+				'description' => 'LmdbReferralCompatibilityFeatureDocumentModelsDesc',
+				'min_dolibarr' => '20.0.0',
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('CommonDocGenerator', 'getListOfModels'),
+			),
+			'numbering_models' => array(
+				'label' => 'LmdbReferralCompatibilityFeatureNumberingModels',
+				'description' => 'LmdbReferralCompatibilityFeatureNumberingModelsDesc',
+				'min_dolibarr' => '20.0.0',
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('CommonNumRefGenerator', 'get_next_value'),
+			),
 		);
 	}
 
@@ -134,6 +148,16 @@ class LmdbReferralCompatibility
 				if ($check === 'Facture' && !class_exists('Facture')) {
 					$available = false;
 					$reason = 'LmdbReferralCompatibilityReasonClassMissing';
+					break;
+				}
+				if (in_array($check, array('CommonDocGenerator', 'CommonNumRefGenerator'), true) && !class_exists($check)) {
+					$available = false;
+					$reason = 'LmdbReferralCompatibilityReasonClassMissing';
+					break;
+				}
+				if (in_array($check, array('getListOfModels', 'get_next_value'), true) && !function_exists($check)) {
+					$available = false;
+					$reason = 'LmdbReferralCompatibilityReasonFunctionMissing';
 					break;
 				}
 			}

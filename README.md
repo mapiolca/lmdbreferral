@@ -12,6 +12,8 @@ Module externe Dolibarr V1 pour suivre les liens de parrainage entre un tiers ou
 - bannière native sur les factures des tiers filleuls avec un lien de parrainage actif ;
 - vue d’ensemble statistique avec filtres, KPI, entonnoir, graphe étoile, classements et relances ;
 - liste native exportable des parrainages ;
+- modèle PDF standard générable depuis le bloc natif **Fichiers joints** ;
+- modèles de numérotation `standard` et `advanced` configurables depuis les réglages du module ;
 - API REST minimale : liste, détail, création, remplacement, annulation, événements, statistiques enrichies et graphe étoile ;
 - onglets `Parrainages / Filleuls` sur fiches tiers et utilisateurs ;
 - compatibilité Multicompany avec déclaration des objets partageables.
@@ -36,3 +38,5 @@ Le seul point d’entrée déclaré dans la liste des modules est `admin/setup.p
 Les utilisateurs autorisés à être parrains sont stockés dans `llx_lmdbreferral_user_eligibility`.
 
 Les réglages de dashboard permettent de définir le délai de relance des filleuls sans devis signé, la profondeur et la limite de nœuds du graphe étoile.
+
+Les réglages de documents et de numérotation permettent d’activer le modèle PDF standard, de choisir le modèle PDF par défaut et de sélectionner le modèle de référence des liens de parrainage.
