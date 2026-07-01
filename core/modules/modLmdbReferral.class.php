@@ -156,7 +156,7 @@ class modLmdbReferral extends DolibarrModules
 			'fk_menu' => 'fk_mainmenu=companies',
 			'type' => 'left',
 			'titre' => 'LmdbReferralMenu',
-			'prefix' => img_picto('', 'fa-handshake', 'class="pictofixedwidth valignmiddle"'),
+			'prefix' => img_picto('', 'fa-handshake_fas_#6c6aa8', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'companies',
 			'leftmenu' => 'lmdbreferral',
 			'url' => '/lmdbreferral/index.php',
