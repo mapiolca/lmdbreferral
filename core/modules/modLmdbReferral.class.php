@@ -326,10 +326,10 @@ class modLmdbReferral extends DolibarrModules
 	public function remove($options = '')
 	{
 		$savedConstants = $this->fetchModuleConstants();
-		$this->syncMulticompanySharing(0);
 		$result = $this->_remove(array(), $options);
 		if ($result > 0) {
 			$this->restoreModuleConstants($savedConstants);
+			$this->syncMulticompanySharing(1);
 		}
 
 		return $result;
@@ -507,7 +507,7 @@ class modLmdbReferral extends DolibarrModules
 			}
 		}
 		if ($enable) {
-			$current = array_replace_recursive($current, ActionsLmdbReferral::getMulticompanySharingDefinition());
+			$current = array_replace_recursive(ActionsLmdbReferral::getMulticompanySharingDefinition(), $current);
 		} else {
 			unset($current['lmdbreferral']);
 		}
