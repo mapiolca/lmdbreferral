@@ -305,9 +305,9 @@ function lmdbreferralGetLinkBannerMoreHtmlRef($object)
 	}
 
 	$out = '<div class="refidno">';
-	$out .= '<strong>'.$langs->trans('LmdbReferralReferrer').'</strong> : '.$referrerNomUrl;
-	$out .= '<br><strong>'.$langs->trans('LmdbReferralReferredThirdparty').'</strong> : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
-	$out .= '<br><strong>'.$langs->trans('DateCreation').'</strong> : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
+	$out .= $langs->trans('LmdbReferralReferrer').' : '.$referrerNomUrl;
+	$out .= '<br>'.$langs->trans('LmdbReferralReferredThirdparty').' : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
+	$out .= '<br>'.$langs->trans('DateCreation').' : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
 	$out .= '</div>';
 
 	return $out;
