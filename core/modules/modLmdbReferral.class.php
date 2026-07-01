@@ -47,6 +47,7 @@ class modLmdbReferral extends DolibarrModules
 					'thirdpartycard',
 					'invoicecard',
 					'usercard',
+					'lmdbreferrallinkcard',
 					'globalcard',
 					'elementproperties',
 					'multicompanyexternalmodulesharing',

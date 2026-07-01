@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-- Ajout de la preview PDF dans la bannière, correction de la suppression depuis la fiche et alignement du PDF sur le style natif Dolibarr.
+- Ajout de la preview PDF dans le cadre natif de la bannière, correction de la suppression depuis la fiche et alignement du PDF sur le style natif Dolibarr.
 - Application de l'arrondi Dolibarr des prix totaux aux montants du module, avec affichage de la devise.
 - Repositionnement des boutons d'action de la fiche lien dans la zone native Dolibarr.
 - Amélioration du rendu responsive de la fiche lien et calcul de l'âge depuis la date de création du tiers filleul.

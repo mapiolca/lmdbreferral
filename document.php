@@ -57,6 +57,7 @@ if ($upload_dir !== '') {
 
 $form = new Form($db);
 $formfile = new FormFile($db);
+$hookmanager->initHooks(array('lmdbreferrallinkcard', 'globalcard'));
 
 $filearray = array();
 if ($upload_dir !== '') {
@@ -79,8 +80,7 @@ print dol_get_fiche_head($head, 'documents', $langs->trans('LmdbReferralLink'), 
 
 $linkback = '<a href="'.dol_buildpath('/lmdbreferral/list.php', 1).'">'.$langs->trans('BackToList').'</a>';
 $morehtmlref = '';
-$morehtmlleft = lmdbreferralGetLinkBannerPdfPreviewHtml($object);
-dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref, '', 0, $morehtmlleft);
+dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
 
 print '<div class="fichecenter">';
 print '<div class="underbanner clearboth"></div>';

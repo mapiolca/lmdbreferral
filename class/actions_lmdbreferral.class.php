@@ -130,6 +130,31 @@ class ActionsLmdbReferral
 	}
 
 	/**
+	 * Replace the native banner picture slot with the generated PDF preview.
+	 *
+	 * @param array<string,mixed> $parameters Parameters, including referenced morehtmlleft
+	 * @param object             $object Object
+	 * @param string             $action Action
+	 * @param HookManager        $hookmanager Hook manager
+	 * @return int
+	 */
+	public function formDolBanner($parameters, &$object, &$action, $hookmanager)
+	{
+		if (!is_object($object) || empty($object->element) || $object->element !== 'lmdbreferrallink') {
+			return 0;
+		}
+
+		$previewHtml = lmdbreferralGetLinkBannerPdfPreviewHtml($object);
+		if ($previewHtml === '') {
+			return 0;
+		}
+
+		$parameters['morehtmlleft'] = $previewHtml;
+
+		return 0;
+	}
+
+	/**
 	 * Expose the referral link object to native Dolibarr element resolution.
 	 *
 	 * @param array<string,mixed> $parameters Parameters

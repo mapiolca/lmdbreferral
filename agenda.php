@@ -143,6 +143,7 @@ if ($agendaEnabled && !$canReadOwnAgenda && !$canReadAllAgenda) {
 
 $form = new Form($db);
 $formactions = new FormActions($db);
+$hookmanager->initHooks(array('lmdbreferrallinkcard', 'globalcard'));
 $socid = (int) $object->fk_soc_filleul;
 $agendaElementType = lmdbreferralGetAgendaElementType();
 
@@ -152,8 +153,7 @@ $head = lmdbreferralLinkPrepareHead($object);
 print dol_get_fiche_head($head, 'agenda', $langs->trans('LmdbReferralLink'), -1, 'fa-handshake');
 
 $linkback = '<a href="'.dol_buildpath('/lmdbreferral/list.php', 1).'">'.$langs->trans('BackToList').'</a>';
-$morehtmlleft = lmdbreferralGetLinkBannerPdfPreviewHtml($object);
-dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', '', '', 0, $morehtmlleft);
+dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', '');
 
 print '<div class="fichecenter">';
 print '<div class="underbanner clearboth"></div>';

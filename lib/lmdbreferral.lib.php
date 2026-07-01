@@ -267,11 +267,12 @@ function lmdbreferralGetLinkBannerPdfPreviewHtml($object)
 		$previewUrl = '<a href="'.DOL_URL_ROOT.'/document.php?modulepart='.urlencode($modulepart).'&entity='.$entity.'&attachment=0&file='.urlencode($relativePdf).'" target="_blank">';
 	}
 
+	$heightForPhotoref = !empty($conf->dol_optimize_smallscreen) ? 60 : 80;
 	$out = '<div class="floatleft inline-block valignmiddle divphotoref">';
 	$out .= '<div class="photoref">';
 	$out .= $previewUrl;
 	if ($previewForDisplayRelative !== '') {
-		$out .= '<img class="photo photowithborder" src="'.DOL_URL_ROOT.'/viewimage.php?modulepart='.urlencode($modulepart).'&entity='.$entity.'&file='.urlencode($previewForDisplayRelative).'" alt="'.dol_escape_htmltag($langs->trans('Preview')).'">';
+		$out .= '<img height="'.((int) $heightForPhotoref).'" class="photo photowithborder" src="'.DOL_URL_ROOT.'/viewimage.php?modulepart='.urlencode($modulepart).'&entity='.$entity.'&file='.urlencode($previewForDisplayRelative).'" alt="'.dol_escape_htmltag($langs->trans('Preview')).'">';
 	} else {
 		$out .= '<span class="photo photowithborder valignmiddle">'.img_mime($relativePdf, $langs->trans('Preview'), 'pictopreview').'</span>';
 	}

@@ -108,6 +108,7 @@ if ($action === 'delete') {
 
 $form = new Form($db);
 $formfile = new FormFile($db);
+$hookmanager->initHooks(array('lmdbreferrallinkcard', 'globalcard'));
 $referrerNomUrl = lmdbreferralGetReferrerNomUrl($object->referrer_type, $object->referrer_type === 'soc' ? (int) $object->fk_soc_parrain : (int) $object->fk_user_parrain);
 $filleulNomUrl = '';
 $soc = new Societe($db);
@@ -126,9 +127,8 @@ $morehtmlref .= '<strong>'.$langs->trans('LmdbReferralReferrer').'</strong> : '.
 $morehtmlref .= '<br><strong>'.$langs->trans('LmdbReferralReferredThirdparty').'</strong> : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
 $morehtmlref .= '<br><strong>'.$langs->trans('DateCreation').'</strong> : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
 $morehtmlref .= '</div>';
-$morehtmlleft = lmdbreferralGetLinkBannerPdfPreviewHtml($object);
 
-dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref, '', 0, $morehtmlleft);
+dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
 
 print '<div class="underbanner clearboth"></div>';
 
