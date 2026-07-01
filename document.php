@@ -79,7 +79,7 @@ $head = lmdbreferralLinkPrepareHead($object);
 print dol_get_fiche_head($head, 'documents', $langs->trans('LmdbReferralLink'), -1, 'fa-handshake');
 
 $linkback = '<a href="'.dol_buildpath('/lmdbreferral/list.php', 1).'">'.$langs->trans('BackToList').'</a>';
-$morehtmlref = '';
+$morehtmlref = lmdbreferralGetLinkBannerMoreHtmlRef($object);
 dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
 
 print '<div class="fichecenter">';

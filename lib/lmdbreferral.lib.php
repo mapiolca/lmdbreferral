@@ -284,6 +284,36 @@ function lmdbreferralGetLinkBannerPdfPreviewHtml($object)
 }
 
 /**
+ * Return the referral link important information for native banners.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkBannerMoreHtmlRef($object)
+{
+	global $db, $langs;
+
+	$referrerId = $object->referrer_type === 'soc' ? (int) $object->fk_soc_parrain : (int) $object->fk_user_parrain;
+	$referrerNomUrl = lmdbreferralGetReferrerNomUrl((string) $object->referrer_type, $referrerId);
+	$filleulNomUrl = '';
+	if ((int) $object->fk_soc_filleul > 0) {
+		require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+		$soc = new Societe($db);
+		if ($soc->fetch((int) $object->fk_soc_filleul) > 0) {
+			$filleulNomUrl = $soc->getNomUrl(1);
+		}
+	}
+
+	$out = '<div class="refidno">';
+	$out .= '<strong>'.$langs->trans('LmdbReferralReferrer').'</strong> : '.$referrerNomUrl;
+	$out .= '<br><strong>'.$langs->trans('LmdbReferralReferredThirdparty').'</strong> : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
+	$out .= '<br><strong>'.$langs->trans('DateCreation').'</strong> : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
+	$out .= '</div>';
+
+	return $out;
+}
+
+/**
  * Return the native shortlist limit used for linked agenda events.
  *
  * @return int
