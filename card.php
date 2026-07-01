@@ -50,7 +50,9 @@ $service = new LmdbReferralService($db);
 $linkLocked = $service->isLockedBySignedProposal((int) $object->fk_soc_filleul);
 $statsService = new LmdbReferralStats($db);
 $linkStats = $statsService->getLinkStats($user, $object);
-$upload_dir = lmdbreferralGetLinkDocumentDir($object);
+$document_root_dir = lmdbreferralGetLinkDocumentRootDir($object);
+$filedir = lmdbreferralGetLinkDocumentDir($object);
+$upload_dir = $document_root_dir;
 $urlsource = $_SERVER['PHP_SELF'].'?id='.(int) $object->id;
 $modulepart = lmdbreferralGetLinkDocumentModulePart();
 $modulesubdir = lmdbreferralGetLinkDocumentSubdir($object);
@@ -60,8 +62,12 @@ $modelselected = !empty($object->model_pdf) ? $object->model_pdf : getDolGlobalS
 $genallowed = $permissiontoadd;
 $delallowed = $permissiontoadd || $permissiontocancel || $permissiontodelete;
 
-if ($upload_dir !== '') {
+if ($document_root_dir !== '') {
+	$upload_dir = $document_root_dir;
 	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+}
+if ($filedir !== '') {
+	$upload_dir = $filedir;
 	include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
 }
 
@@ -120,8 +126,9 @@ $morehtmlref .= '<strong>'.$langs->trans('LmdbReferralReferrer').'</strong> : '.
 $morehtmlref .= '<br><strong>'.$langs->trans('LmdbReferralReferredThirdparty').'</strong> : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
 $morehtmlref .= '<br><strong>'.$langs->trans('DateCreation').'</strong> : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
 $morehtmlref .= '</div>';
+$morehtmlleft = lmdbreferralGetLinkBannerPdfPreviewHtml($object);
 
-dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
+dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref, '', 0, $morehtmlleft);
 
 print '<div class="underbanner clearboth"></div>';
 
@@ -158,8 +165,8 @@ print '<div class="fichecenter">';
 print '<div class="fichehalfleft">';
 print '<a name="builddoc"></a>';
 
-if ($upload_dir !== '') {
-	print $formfile->showdocuments($modulepart, $modulesubdir, $upload_dir, $urlsource, $genallowed, $delallowed, $modelselected, 0, 0, 0, 28, 0, 'id='.(int) $object->id, '', '', $langs->defaultlang, '', $object);
+if ($filedir !== '') {
+	print $formfile->showdocuments($modulepart, $modulesubdir, $filedir, $urlsource, $genallowed, $delallowed, $modelselected, 0, 0, 0, 28, 0, 'id='.(int) $object->id, '', '', $langs->defaultlang, '', $object);
 } else {
 	print '<div class="opacitymedium">'.$langs->trans('NotAvailable').'</div>';
 }

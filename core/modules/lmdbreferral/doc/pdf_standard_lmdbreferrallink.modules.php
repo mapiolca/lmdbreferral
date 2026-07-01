@@ -66,6 +66,9 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	/** @var string */
 	public $watermark = '';
 
+	/** @var int */
+	public $corner_radius = 0;
+
 	/**
 	 * Constructor.
 	 *
@@ -88,6 +91,7 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$this->marge_haute = getDolGlobalInt('MAIN_PDF_MARGIN_TOP', 10);
 		$this->marge_basse = getDolGlobalInt('MAIN_PDF_MARGIN_BOTTOM', 10);
 		$this->emetteur = is_object($mysoc) ? $mysoc : null;
+		$this->corner_radius = getDolGlobalInt('MAIN_PDF_FRAME_CORNER_RADIUS', 0);
 	}
 
 	/**
@@ -143,12 +147,11 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->AddPage();
 		$this->applyReservedFooter($pdf, $footerHeight);
 
-		$y = $this->marge_haute;
 		$width = $this->page_largeur - $this->marge_droite - $this->marge_gauche;
 		$statsService = new LmdbReferralStats($this->db);
 		$linkStats = $statsService->getLinkStats($user, $object);
 
-		$this->writeHeaderBlock($pdf, $outputlangs, $object, $y, $width, $defaultFontSize);
+		$y = $this->_pagehead($pdf, $object, 1, $outputlangs);
 		$this->writeIdentityBlock($pdf, $outputlangs, $object, $y, $width, $defaultFontSize, $footerHeight);
 		$this->writeStatsBlock($pdf, $outputlangs, $object, $y, $width, $defaultFontSize, $footerHeight, $linkStats);
 		$this->writeSignedPropalsBlock($pdf, $outputlangs, $object, $y, $width, $defaultFontSize, $footerHeight, $linkStats);
@@ -168,44 +171,148 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	}
 
 	/**
-	 * Write the document header.
+	 * Show native PDF page header.
 	 *
 	 * @param TCPDF|TCPDI      $pdf PDF instance
-	 * @param Translate        $outputlangs Output language
 	 * @param LmdbReferralLink $object Object
-	 * @param float            $y Current Y
-	 * @param float            $width Available width
-	 * @param int              $fontSize Base font size
-	 * @return void
+	 * @param int              $showaddress 1 to show sender/recipient blocks
+	 * @param Translate        $outputlangs Output language
+	 * @return float Content start Y
 	 */
-	private function writeHeaderBlock(&$pdf, $outputlangs, $object, &$y, $width, $fontSize)
+	protected function _pagehead(&$pdf, $object, $showaddress, $outputlangs)
 	{
-		$headerHeight = 28;
-		$pdf->SetDrawColor(225, 230, 235);
-		$pdf->SetFillColor(245, 247, 250);
-		$pdf->Rect($this->marge_gauche, $y, $width, $headerHeight, 'DF');
+		global $conf;
 
-		$pdf->SetTextColor(35, 35, 35);
-		$pdf->SetFont('', 'B', $fontSize + 5);
-		$pdf->SetXY($this->marge_gauche + 4, $y + 5);
-		$pdf->MultiCell($width - 52, 8, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralLink').' '.$object->ref), 0, 'L');
-
-		$pdf->SetFont('', '', max(7, $fontSize - 2));
-		$pdf->SetTextColor(95, 95, 95);
-		$pdf->SetXY($this->marge_gauche + 4, $y + 18);
-		$pdf->MultiCell($width - 52, 5, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralPdfGeneratedOn').' '.dol_print_date(dol_now(), 'dayhour')), 0, 'L');
-
-		if ((int) $object->status === LmdbReferralLink::STATUS_CANCELLED) {
-			$pdf->SetFillColor(145, 74, 74);
-		} else {
-			$pdf->SetFillColor(55, 133, 87);
+		$ltrdirection = 'L';
+		if ($outputlangs->trans('DIRECTION') == 'rtl') {
+			$ltrdirection = 'R';
 		}
-		$pdf->SetTextColor(255, 255, 255);
-		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
-		$pdf->SetXY($this->marge_gauche + $width - 45, $y + 8);
-		$pdf->MultiCell(38, 7, $this->pdfText($outputlangs, $object->getLibStatut(0)), 0, 'C', 1);
 
-		$y += $headerHeight + 7;
+		$outputlangs->loadLangs(array('main', 'companies', 'lmdbreferral@lmdbreferral'));
+		$defaultFontSize = pdf_getPDFFontSize($outputlangs);
+
+		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
+
+		$posy = $this->marge_haute;
+		$posx = $this->marge_gauche;
+		$rightWidth = 100;
+		$rightX = $this->page_largeur - $this->marge_droite - $rightWidth;
+
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', 'B', $defaultFontSize + 3);
+		$pdf->SetXY($posx, $posy);
+
+		if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
+			if (is_object($this->emetteur) && !empty($this->emetteur->logo)) {
+				$objectEntity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+				$logodir = $conf->mycompany->dir_output;
+				if (!empty($conf->mycompany->multidir_output[$objectEntity])) {
+					$logodir = $conf->mycompany->multidir_output[$objectEntity];
+				}
+				$logo = !getDolGlobalInt('MAIN_PDF_USE_LARGE_LOGO') ? $logodir.'/logos/thumbs/'.$this->emetteur->logo_small : $logodir.'/logos/'.$this->emetteur->logo;
+				if (is_readable($logo)) {
+					$height = pdf_getHeightForLogo($logo);
+					$pdf->Image($logo, $this->marge_gauche, $posy, 0, $height);
+				} else {
+					$pdf->SetTextColor(200, 0, 0);
+					$pdf->SetFont('', 'B', $defaultFontSize - 2);
+					$pdf->MultiCell($rightWidth, 3, $outputlangs->transnoentities('ErrorLogoFileNotFound', $logo), 0, $ltrdirection);
+					$pdf->MultiCell($rightWidth, 3, $outputlangs->transnoentities('ErrorGoToGlobalSetup'), 0, $ltrdirection);
+				}
+			} elseif (is_object($this->emetteur)) {
+				$pdf->MultiCell($rightWidth, 4, $outputlangs->convToOutputCharset($this->emetteur->name), 0, $ltrdirection);
+			}
+		}
+
+		$title = $this->pdfTrans($outputlangs, 'LmdbReferralLink').' '.$object->ref;
+		if ((int) $object->status === LmdbReferralLink::STATUS_CANCELLED) {
+			$pdf->SetTextColor(128, 0, 0);
+			$title .= ' - '.$object->getLibStatut(0);
+		}
+
+		$pdf->SetFont('', 'B', $defaultFontSize + 3);
+		$pdf->SetXY($rightX, $posy);
+		$pdf->MultiCell($rightWidth, 4, $this->pdfText($outputlangs, $title), 0, 'R');
+
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', '', $defaultFontSize - 2);
+		$posy = $pdf->GetY() + 2;
+		$pdf->SetXY($rightX, $posy);
+		$pdf->MultiCell($rightWidth, 3, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'DateCreation').' : '.$this->formatDate($object->date_creation)), 0, 'R');
+
+		$topShift = max(0, $pdf->GetY() - ($this->marge_haute + 12));
+
+		if ($showaddress) {
+			$filleul = new Societe($this->db);
+			$filleulLoaded = ((int) $object->fk_soc_filleul > 0 && $filleul->fetch((int) $object->fk_soc_filleul) > 0);
+			$thirdparty = $filleulLoaded ? $filleul : null;
+			$hautcadre = 40;
+
+			$senderText = '';
+			if (is_object($this->emetteur)) {
+				$senderText = pdf_build_address($outputlangs, $this->emetteur, ($thirdparty ?: ''), '', 0, 'source', $object);
+			}
+
+			$posy = 42 + $topShift;
+			$senderX = $this->marge_gauche;
+			if (getDolGlobalString('MAIN_INVERT_SENDER_RECIPIENT')) {
+				$senderX = $this->page_largeur - $this->marge_droite - 82;
+			}
+
+			if (!getDolGlobalString('MAIN_PDF_NO_SENDER_FRAME')) {
+				$pdf->SetTextColor(0, 0, 0);
+				$pdf->SetFont('', '', $defaultFontSize - 2);
+				$pdf->SetXY($senderX, $posy - 5);
+				$pdf->MultiCell(80, 5, $outputlangs->transnoentities('BillFrom'), 0, $ltrdirection);
+				$pdf->SetFillColor(230, 230, 230);
+				$pdf->RoundedRect($senderX, $posy, 82, $hautcadre, $this->corner_radius, '1234', 'F');
+			}
+
+			$currentY = $posy + 3;
+			if (is_object($this->emetteur) && !getDolGlobalString('MAIN_PDF_HIDE_SENDER_NAME')) {
+				$pdf->SetTextColor(0, 0, 60);
+				$pdf->SetFont('', 'B', $defaultFontSize);
+				$pdf->SetXY($senderX + 2, $currentY);
+				$pdf->MultiCell(80, 4, $outputlangs->convToOutputCharset($this->emetteur->name), 0, $ltrdirection);
+				$currentY = $pdf->GetY();
+			}
+			$pdf->SetTextColor(0, 0, 60);
+			$pdf->SetFont('', '', $defaultFontSize - 1);
+			$pdf->SetXY($senderX + 2, $currentY);
+			$pdf->MultiCell(80, 4, $senderText, 0, $ltrdirection);
+
+			$recipientWidth = ($this->page_largeur < 210) ? 84 : 100;
+			$recipientX = $this->page_largeur - $this->marge_droite - $recipientWidth;
+			if (getDolGlobalString('MAIN_INVERT_SENDER_RECIPIENT')) {
+				$recipientX = $this->marge_gauche;
+			}
+			$recipientName = is_object($thirdparty) ? pdfBuildThirdpartyName($thirdparty, $outputlangs) : $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'NotAvailable'));
+			$recipientText = is_object($thirdparty) && is_object($this->emetteur) ? pdf_build_address($outputlangs, $this->emetteur, $thirdparty, '', 0, 'target', $object) : '';
+
+			if (!getDolGlobalString('MAIN_PDF_NO_RECIPENT_FRAME')) {
+				$pdf->SetTextColor(0, 0, 0);
+				$pdf->SetFont('', '', $defaultFontSize - 2);
+				$pdf->SetXY($recipientX + 2, $posy - 5);
+				$pdf->MultiCell($recipientWidth, 5, $outputlangs->transnoentities('BillTo'), 0, $ltrdirection);
+				$pdf->RoundedRect($recipientX, $posy, $recipientWidth, $hautcadre, $this->corner_radius, '1234', 'D');
+			}
+
+			$pdf->SetTextColor(0, 0, 60);
+			$pdf->SetFont('', 'B', $defaultFontSize);
+			$pdf->SetXY($recipientX + 2, $posy + 3);
+			$pdf->MultiCell($recipientWidth, 4, $recipientName, 0, $ltrdirection);
+			$pdf->SetFont('', '', $defaultFontSize - 1);
+			$pdf->SetXY($recipientX + 2, $pdf->GetY());
+			$pdf->MultiCell($recipientWidth, 4, $recipientText, 0, $ltrdirection);
+
+			$pdf->SetTextColor(0, 0, 0);
+
+			return $posy + $hautcadre + 10;
+		}
+
+		$pdf->SetTextColor(0, 0, 0);
+
+		return max($this->marge_haute + 24, $pdf->GetY() + 8);
 	}
 
 	/**
@@ -222,13 +329,22 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 */
 	private function writeIdentityBlock(&$pdf, $outputlangs, $object, &$y, $width, $fontSize, $footerHeight)
 	{
-		$this->ensureSpace($pdf, $object, $outputlangs, $y, 38, $footerHeight);
+		$this->ensureSpace($pdf, $object, $outputlangs, $y, 12, $footerHeight);
 		$this->writeSectionTitle($pdf, $outputlangs, $y, $width, $this->pdfTrans($outputlangs, 'LmdbReferralPdfIdentity'), $fontSize);
-		$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $this->pdfTrans($outputlangs, 'Ref'), (string) $object->ref, $this->pdfTrans($outputlangs, 'Status'), $object->getLibStatut(0));
-		$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $this->pdfTrans($outputlangs, 'LmdbReferralReferrer'), $this->getReferrerLabel($object, $outputlangs), $this->pdfTrans($outputlangs, 'LmdbReferralReferredThirdparty'), $this->getThirdpartyLabel((int) $object->fk_soc_filleul));
-		$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $this->pdfTrans($outputlangs, 'DateCreation'), $this->formatDate($object->date_creation), $this->pdfTrans($outputlangs, 'DateModificationShort'), !empty($object->date_modification) ? $this->formatDate($object->date_modification) : $this->pdfTrans($outputlangs, 'NotAvailable'));
+
+		$rows = array(
+			array($this->pdfTrans($outputlangs, 'Ref'), (string) $object->ref, $this->pdfTrans($outputlangs, 'Status'), $object->getLibStatut(0)),
+			array($this->pdfTrans($outputlangs, 'LmdbReferralReferrer'), $this->getReferrerLabel($object, $outputlangs), $this->pdfTrans($outputlangs, 'LmdbReferralReferredThirdparty'), $this->getThirdpartyLabel((int) $object->fk_soc_filleul)),
+			array($this->pdfTrans($outputlangs, 'DateCreation'), $this->formatDate($object->date_creation), $this->pdfTrans($outputlangs, 'DateModificationShort'), !empty($object->date_modification) ? $this->formatDate($object->date_modification) : $this->pdfTrans($outputlangs, 'NotAvailable')),
+		);
 		if (!empty($object->date_annulation)) {
-			$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $this->pdfTrans($outputlangs, 'LmdbReferralCancellationDate'), $this->formatDate($object->date_annulation), '', '');
+			$rows[] = array($this->pdfTrans($outputlangs, 'LmdbReferralCancellationDate'), $this->formatDate($object->date_annulation), '', '');
+		}
+
+		foreach ($rows as $row) {
+			$rowHeight = $this->getPairRowHeight($pdf, $outputlangs, $width, $fontSize, $row[0], $row[1], $row[2], $row[3]);
+			$this->ensureSpace($pdf, $object, $outputlangs, $y, $rowHeight, $footerHeight);
+			$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $row[0], $row[1], $row[2], $row[3], $rowHeight);
 		}
 		$y += 4;
 	}
@@ -248,30 +364,44 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 */
 	private function writeStatsBlock(&$pdf, $outputlangs, $object, &$y, $width, $fontSize, $footerHeight, array $stats)
 	{
-		$this->ensureSpace($pdf, $object, $outputlangs, $y, 48, $footerHeight);
+		$this->ensureSpace($pdf, $object, $outputlangs, $y, 12, $footerHeight);
 		$this->writeSectionTitle($pdf, $outputlangs, $y, $width, $this->pdfTrans($outputlangs, 'LmdbReferralLinkStats'), $fontSize);
 
 		$boxGap = 2;
-		$boxHeight = 19;
 		$boxWidth = ($width - (3 * $boxGap)) / 4;
 		$daysToFirstSignature = array_key_exists('days_to_first_signature', $stats) ? $stats['days_to_first_signature'] : null;
 		$delayValue = !empty($stats['is_transformed']) ? $this->formatStatsDays($outputlangs, $daysToFirstSignature) : $this->formatStatsDays($outputlangs, (int) ($stats['age_days'] ?? 0));
 		$delayLabel = !empty($stats['is_transformed']) ? $this->pdfTrans($outputlangs, 'LmdbReferralDaysToFirstSignature') : $this->pdfTrans($outputlangs, 'LmdbReferralLinkAgeDays');
+		$metrics = array(
+			array($this->pdfTrans($outputlangs, 'LmdbReferralSignedPropalsCount'), (string) ((int) ($stats['signed_propals'] ?? 0))),
+			array($this->pdfTrans($outputlangs, 'LmdbReferralGeneratedCAHT'), $this->formatAmount((float) ($stats['amount_ht'] ?? 0.0))),
+			array($this->pdfTrans($outputlangs, 'LmdbReferralAverageBasketHT'), $this->formatAmount((float) ($stats['average_basket_ht'] ?? 0.0))),
+			array($delayLabel, $delayValue),
+		);
+		$boxHeight = 19.0;
+		foreach ($metrics as $metric) {
+			$boxHeight = max($boxHeight, $this->getMetricBoxHeight($pdf, $outputlangs, $boxWidth, $fontSize, $metric[0], $metric[1]));
+		}
+		$this->ensureSpace($pdf, $object, $outputlangs, $y, $boxHeight + 3, $footerHeight);
 
 		$x = $this->marge_gauche;
-		$this->writeMetricBox($pdf, $outputlangs, $x, $y, $boxWidth, $boxHeight, $this->pdfTrans($outputlangs, 'LmdbReferralSignedPropalsCount'), (string) ((int) ($stats['signed_propals'] ?? 0)), $fontSize);
-		$x += $boxWidth + $boxGap;
-		$this->writeMetricBox($pdf, $outputlangs, $x, $y, $boxWidth, $boxHeight, $this->pdfTrans($outputlangs, 'LmdbReferralGeneratedCAHT'), $this->formatAmount((float) ($stats['amount_ht'] ?? 0.0)), $fontSize);
-		$x += $boxWidth + $boxGap;
-		$this->writeMetricBox($pdf, $outputlangs, $x, $y, $boxWidth, $boxHeight, $this->pdfTrans($outputlangs, 'LmdbReferralAverageBasketHT'), $this->formatAmount((float) ($stats['average_basket_ht'] ?? 0.0)), $fontSize);
-		$x += $boxWidth + $boxGap;
-		$this->writeMetricBox($pdf, $outputlangs, $x, $y, $boxWidth, $boxHeight, $delayLabel, $delayValue, $fontSize);
+		foreach ($metrics as $metric) {
+			$this->writeMetricBox($pdf, $outputlangs, $x, $y, $boxWidth, $boxHeight, $metric[0], $metric[1], $fontSize);
+			$x += $boxWidth + $boxGap;
+		}
 		$y += $boxHeight + 3;
 
 		$transformation = !empty($stats['is_transformed']) ? $this->pdfTrans($outputlangs, 'LmdbReferralConverted') : $this->pdfTrans($outputlangs, 'LmdbReferralToFollow');
 		$lockStatus = !empty($stats['is_locked']) ? $this->pdfTrans($outputlangs, 'LmdbReferralCommercialLockActive') : $this->pdfTrans($outputlangs, 'LmdbReferralCommercialLockInactive');
-		$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $this->pdfTrans($outputlangs, 'LmdbReferralLinkConversionStatus'), $transformation, $this->pdfTrans($outputlangs, 'LmdbReferralCommercialLockStatus'), $lockStatus);
-		$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $this->pdfTrans($outputlangs, 'LmdbReferralFirstSignatureDate'), $this->formatOptionalDate($outputlangs, (string) ($stats['first_signature_date'] ?? '')), $this->pdfTrans($outputlangs, 'LmdbReferralLastSignatureDate'), $this->formatOptionalDate($outputlangs, (string) ($stats['last_signature_date'] ?? '')));
+		$rows = array(
+			array($this->pdfTrans($outputlangs, 'LmdbReferralLinkConversionStatus'), $transformation, $this->pdfTrans($outputlangs, 'LmdbReferralCommercialLockStatus'), $lockStatus),
+			array($this->pdfTrans($outputlangs, 'LmdbReferralFirstSignatureDate'), $this->formatOptionalDate($outputlangs, (string) ($stats['first_signature_date'] ?? '')), $this->pdfTrans($outputlangs, 'LmdbReferralLastSignatureDate'), $this->formatOptionalDate($outputlangs, (string) ($stats['last_signature_date'] ?? ''))),
+		);
+		foreach ($rows as $row) {
+			$rowHeight = $this->getPairRowHeight($pdf, $outputlangs, $width, $fontSize, $row[0], $row[1], $row[2], $row[3]);
+			$this->ensureSpace($pdf, $object, $outputlangs, $y, $rowHeight, $footerHeight);
+			$this->writePairRow($pdf, $outputlangs, $y, $width, $fontSize, $row[0], $row[1], $row[2], $row[3], $rowHeight);
+		}
 		$y += 4;
 	}
 
@@ -295,19 +425,22 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 			return;
 		}
 
-		$this->ensureSpace($pdf, $object, $outputlangs, $y, 25, $footerHeight);
+		$headerHeight = $this->getProposalTableHeaderHeight($pdf, $outputlangs, $width, $fontSize);
+		$this->ensureSpace($pdf, $object, $outputlangs, $y, 12 + $headerHeight, $footerHeight);
 		$this->writeSectionTitle($pdf, $outputlangs, $y, $width, $this->pdfTrans($outputlangs, 'LmdbReferralSignedProposalsDetails'), $fontSize);
-		$this->writeProposalTableHeader($pdf, $outputlangs, $y, $width, $fontSize);
+		$this->ensureSpace($pdf, $object, $outputlangs, $y, $headerHeight, $footerHeight);
+		$this->writeProposalTableHeader($pdf, $outputlangs, $y, $width, $fontSize, $headerHeight);
 
 		foreach ($propals as $propal) {
-			if (($y + 7) > ($this->page_hauteur - $footerHeight)) {
+			$rowHeight = $this->getProposalTableRowHeight($pdf, $outputlangs, $width, $fontSize, $propal);
+			if (($y + $rowHeight) > ($this->page_hauteur - $footerHeight)) {
 				$this->renderFooter($pdf, $object, $outputlangs, 1);
 				$pdf->AddPage();
 				$this->applyReservedFooter($pdf, $footerHeight);
-				$y = $this->marge_haute;
-				$this->writeProposalTableHeader($pdf, $outputlangs, $y, $width, $fontSize);
+				$y = $this->_pagehead($pdf, $object, 0, $outputlangs);
+				$this->writeProposalTableHeader($pdf, $outputlangs, $y, $width, $fontSize, $headerHeight);
 			}
-			$this->writeProposalTableRow($pdf, $outputlangs, $y, $width, $fontSize, $propal);
+			$this->writeProposalTableRow($pdf, $outputlangs, $y, $width, $fontSize, $propal, $rowHeight);
 		}
 		$y += 4;
 	}
@@ -332,10 +465,8 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		}
 
 		$noteText = $this->pdfText($outputlangs, $this->normalizeText($note));
-		$noteHeight = 18;
-		if (method_exists($pdf, 'getStringHeight')) {
-			$noteHeight = max($noteHeight, (float) $pdf->getStringHeight($width, $noteText) + 8);
-		}
+		$pdf->SetFont('', '', max(7, $fontSize - 1));
+		$noteHeight = $this->getTextHeight($pdf, $width, $noteText, 10.0) + 8;
 		$this->ensureSpace($pdf, $object, $outputlangs, $y, $noteHeight + 10, $footerHeight);
 		$this->writeSectionTitle($pdf, $outputlangs, $y, $width, $this->pdfTrans($outputlangs, 'NotePrivate'), $fontSize);
 		$pdf->SetDrawColor(220, 220, 220);
@@ -368,6 +499,55 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	}
 
 	/**
+	 * Return text height for the current PDF font.
+	 *
+	 * @param TCPDF|TCPDI $pdf PDF instance
+	 * @param float       $width Cell width
+	 * @param string      $text Text
+	 * @param float       $minHeight Minimum height
+	 * @return float
+	 */
+	private function getTextHeight(&$pdf, $width, $text, $minHeight = 4.0)
+	{
+		if (method_exists($pdf, 'getStringHeight')) {
+			return max($minHeight, (float) $pdf->getStringHeight($width, $text));
+		}
+
+		return $minHeight;
+	}
+
+	/**
+	 * Return height for a two-pair information row.
+	 *
+	 * @param TCPDF|TCPDI $pdf PDF instance
+	 * @param Translate   $outputlangs Output language
+	 * @param float       $width Available width
+	 * @param int         $fontSize Base font size
+	 * @param string      $leftLabel Left label
+	 * @param string      $leftValue Left value
+	 * @param string      $rightLabel Right label
+	 * @param string      $rightValue Right value
+	 * @return float
+	 */
+	private function getPairRowHeight(&$pdf, $outputlangs, $width, $fontSize, $leftLabel, $leftValue, $rightLabel, $rightValue)
+	{
+		$gap = 4;
+		$halfWidth = ($width - $gap) / 2;
+		$labelWidth = 34;
+		$valueWidth = $halfWidth - $labelWidth;
+		$rowHeight = 7.0;
+
+		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
+		$rowHeight = max($rowHeight, $this->getTextHeight($pdf, $labelWidth, $this->pdfText($outputlangs, $leftLabel), 5.0) + 2);
+		$rowHeight = max($rowHeight, $this->getTextHeight($pdf, $labelWidth, $this->pdfText($outputlangs, $rightLabel), 5.0) + 2);
+		$pdf->SetFont('', '', max(7, $fontSize - 1));
+		$rowHeight = max($rowHeight, $this->getTextHeight($pdf, $valueWidth, $this->pdfText($outputlangs, $leftValue), 5.0) + 2);
+		$rowHeight = max($rowHeight, $this->getTextHeight($pdf, $valueWidth, $this->pdfText($outputlangs, $rightValue), 5.0) + 2);
+
+		return $rowHeight;
+	}
+
+	/**
 	 * Write a two-pair information row.
 	 *
 	 * @param TCPDF|TCPDI $pdf PDF instance
@@ -381,18 +561,17 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 * @param string      $rightValue Right value
 	 * @return void
 	 */
-	private function writePairRow(&$pdf, $outputlangs, &$y, $width, $fontSize, $leftLabel, $leftValue, $rightLabel, $rightValue)
+	private function writePairRow(&$pdf, $outputlangs, &$y, $width, $fontSize, $leftLabel, $leftValue, $rightLabel, $rightValue, $rowHeight = 0)
 	{
 		$gap = 4;
 		$halfWidth = ($width - $gap) / 2;
 		$labelWidth = 34;
 		$valueWidth = $halfWidth - $labelWidth;
-		$rowHeight = 7;
+		if ($rowHeight <= 0) {
+			$rowHeight = $this->getPairRowHeight($pdf, $outputlangs, $width, $fontSize, $leftLabel, $leftValue, $rightLabel, $rightValue);
+		}
 		$leftValueText = $this->pdfText($outputlangs, $leftValue);
 		$rightValueText = $this->pdfText($outputlangs, $rightValue);
-		if (method_exists($pdf, 'getStringHeight')) {
-			$rowHeight = max($rowHeight, (float) $pdf->getStringHeight($valueWidth, $leftValueText) + 2, (float) $pdf->getStringHeight($valueWidth, $rightValueText) + 2);
-		}
 
 		$pdf->SetDrawColor(222, 222, 222);
 		$pdf->SetFillColor(248, 248, 248);
@@ -440,11 +619,35 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(90, 90, 90);
 		$pdf->SetFont('', '', max(6, $fontSize - 3));
 		$pdf->SetXY($x + 2, $y + 2);
-		$pdf->MultiCell($width - 4, 5, $this->pdfText($outputlangs, $label), 0, 'C');
+		$labelText = $this->pdfText($outputlangs, $label);
+		$valueText = $this->pdfText($outputlangs, $value);
+		$labelHeight = $this->getTextHeight($pdf, $width - 4, $labelText, 5.0);
+		$pdf->MultiCell($width - 4, 5, $labelText, 0, 'C');
 		$pdf->SetTextColor(30, 30, 30);
 		$pdf->SetFont('', 'B', max(8, $fontSize + 1));
-		$pdf->SetXY($x + 2, $y + 9);
-		$pdf->MultiCell($width - 4, 7, $this->pdfText($outputlangs, $value), 0, 'C');
+		$pdf->SetXY($x + 2, $y + 3 + $labelHeight);
+		$pdf->MultiCell($width - 4, 7, $valueText, 0, 'C');
+	}
+
+	/**
+	 * Return height for one KPI box.
+	 *
+	 * @param TCPDF|TCPDI $pdf PDF instance
+	 * @param Translate   $outputlangs Output language
+	 * @param float       $width Box width
+	 * @param int         $fontSize Base font size
+	 * @param string      $label Label
+	 * @param string      $value Value
+	 * @return float
+	 */
+	private function getMetricBoxHeight(&$pdf, $outputlangs, $width, $fontSize, $label, $value)
+	{
+		$pdf->SetFont('', '', max(6, $fontSize - 3));
+		$labelHeight = $this->getTextHeight($pdf, $width - 4, $this->pdfText($outputlangs, $label), 5.0);
+		$pdf->SetFont('', 'B', max(8, $fontSize + 1));
+		$valueHeight = $this->getTextHeight($pdf, $width - 4, $this->pdfText($outputlangs, $value), 7.0);
+
+		return max(19.0, $labelHeight + $valueHeight + 6.0);
 	}
 
 	/**
@@ -457,21 +660,49 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 * @param int         $fontSize Base font size
 	 * @return void
 	 */
-	private function writeProposalTableHeader(&$pdf, $outputlangs, &$y, $width, $fontSize)
+	private function writeProposalTableHeader(&$pdf, $outputlangs, &$y, $width, $fontSize, $rowHeight = 0)
 	{
 		$refWidth = 42;
 		$dateWidth = 42;
 		$amountWidth = ($width - $refWidth - $dateWidth) / 2;
+		if ($rowHeight <= 0) {
+			$rowHeight = $this->getProposalTableHeaderHeight($pdf, $outputlangs, $width, $fontSize);
+		}
 		$pdf->SetDrawColor(210, 210, 210);
 		$pdf->SetFillColor(232, 236, 240);
 		$pdf->SetTextColor(45, 45, 45);
 		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($refWidth, 7, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 1, 'L', 1, 0);
-		$pdf->MultiCell($dateWidth, 7, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 1, 'L', 1, 0);
-		$pdf->MultiCell($amountWidth, 7, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 1, 'R', 1, 0);
-		$pdf->MultiCell($amountWidth, 7, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 1, 'R', 1, 0);
-		$y += 7;
+		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 1, 'L', 1, 0);
+		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 1, 'L', 1, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 1, 'R', 1, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 1, 'R', 1, 0);
+		$y += $rowHeight;
+	}
+
+	/**
+	 * Return signed proposals table header height.
+	 *
+	 * @param TCPDF|TCPDI $pdf PDF instance
+	 * @param Translate   $outputlangs Output language
+	 * @param float       $width Available width
+	 * @param int         $fontSize Base font size
+	 * @return float
+	 */
+	private function getProposalTableHeaderHeight(&$pdf, $outputlangs, $width, $fontSize)
+	{
+		$refWidth = 42;
+		$dateWidth = 42;
+		$amountWidth = ($width - $refWidth - $dateWidth) / 2;
+		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
+
+		return max(
+			7.0,
+			$this->getTextHeight($pdf, $refWidth, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 5.0) + 2,
+			$this->getTextHeight($pdf, $dateWidth, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 5.0) + 2,
+			$this->getTextHeight($pdf, $amountWidth, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 5.0) + 2,
+			$this->getTextHeight($pdf, $amountWidth, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 5.0) + 2
+		);
 	}
 
 	/**
@@ -485,21 +716,50 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 * @param array<string,mixed> $propal Signed proposal row
 	 * @return void
 	 */
-	private function writeProposalTableRow(&$pdf, $outputlangs, &$y, $width, $fontSize, array $propal)
+	private function writeProposalTableRow(&$pdf, $outputlangs, &$y, $width, $fontSize, array $propal, $rowHeight = 0)
 	{
 		$refWidth = 42;
 		$dateWidth = 42;
 		$amountWidth = ($width - $refWidth - $dateWidth) / 2;
+		if ($rowHeight <= 0) {
+			$rowHeight = $this->getProposalTableRowHeight($pdf, $outputlangs, $width, $fontSize, $propal);
+		}
 		$pdf->SetDrawColor(225, 225, 225);
 		$pdf->SetFillColor(255, 255, 255);
 		$pdf->SetTextColor(40, 40, 40);
 		$pdf->SetFont('', '', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($refWidth, 7, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 1, 'L', 0, 0);
-		$pdf->MultiCell($dateWidth, 7, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 1, 'L', 0, 0);
-		$pdf->MultiCell($amountWidth, 7, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 1, 'R', 0, 0);
-		$pdf->MultiCell($amountWidth, 7, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 1, 'R', 0, 0);
-		$y += 7;
+		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 1, 'L', 0, 0);
+		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 1, 'L', 0, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 1, 'R', 0, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 1, 'R', 0, 0);
+		$y += $rowHeight;
+	}
+
+	/**
+	 * Return signed proposal row height.
+	 *
+	 * @param TCPDF|TCPDI      $pdf PDF instance
+	 * @param Translate        $outputlangs Output language
+	 * @param float            $width Available width
+	 * @param int              $fontSize Base font size
+	 * @param array<string,mixed> $propal Signed proposal row
+	 * @return float
+	 */
+	private function getProposalTableRowHeight(&$pdf, $outputlangs, $width, $fontSize, array $propal)
+	{
+		$refWidth = 42;
+		$dateWidth = 42;
+		$amountWidth = ($width - $refWidth - $dateWidth) / 2;
+		$pdf->SetFont('', '', max(7, $fontSize - 1));
+
+		return max(
+			7.0,
+			$this->getTextHeight($pdf, $refWidth, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 5.0) + 2,
+			$this->getTextHeight($pdf, $dateWidth, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 5.0) + 2,
+			$this->getTextHeight($pdf, $amountWidth, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 5.0) + 2,
+			$this->getTextHeight($pdf, $amountWidth, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 5.0) + 2
+		);
 	}
 
 	/**
@@ -687,7 +947,7 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$this->renderFooter($pdf, $object, $outputlangs, 1);
 		$pdf->AddPage();
 		$this->applyReservedFooter($pdf, $footerHeight);
-		$y = $this->marge_haute;
+		$y = $this->_pagehead($pdf, $object, 0, $outputlangs);
 	}
 
 	/**
@@ -704,7 +964,8 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		if (is_object($pdf) && method_exists($pdf, 'SetAutoPageBreak')) {
 			$pdf->SetAutoPageBreak(false, 0);
 		}
-		pdf_pagefoot($pdf, $outputlangs, 'LMDBREFERRAL_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, 0, $hidefreetext, $this->page_largeur, $this->watermark);
+		$showdetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS', 0);
+		pdf_pagefoot($pdf, $outputlangs, 'LMDBREFERRAL_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext, $this->page_largeur, $this->watermark);
 		if (is_object($pdf) && method_exists($pdf, 'SetAutoPageBreak')) {
 			$pdf->SetAutoPageBreak(true, 0);
 		}

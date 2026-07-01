@@ -70,12 +70,12 @@ function lmdbreferralLinkPrepareHead($object)
 }
 
 /**
- * Return document directory for a referral link.
+ * Return document root directory for referral link documents.
  *
  * @param LmdbReferralLink|object $object Referral link
  * @return string
  */
-function lmdbreferralGetLinkDocumentDir($object)
+function lmdbreferralGetLinkDocumentRootDir($object)
 {
 	global $conf;
 
@@ -83,7 +83,6 @@ function lmdbreferralGetLinkDocumentDir($object)
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 	}
 
-	$upload_dir = '';
 	$moduleOutput = '';
 	if (function_exists('getMultidirOutput')) {
 		$moduleOutput = (string) getMultidirOutput($object, 'lmdbreferral', 0);
@@ -98,11 +97,27 @@ function lmdbreferralGetLinkDocumentDir($object)
 		}
 	}
 
-	if ($moduleOutput !== '' && strpos($moduleOutput, 'error-') !== 0) {
-		$upload_dir = rtrim($moduleOutput, '/').'/'.lmdbreferralGetLinkDocumentSubdir($object);
+	if ($moduleOutput === '' || strpos($moduleOutput, 'error-') === 0) {
+		return '';
 	}
 
-	return $upload_dir;
+	return rtrim($moduleOutput, '/');
+}
+
+/**
+ * Return document directory for a referral link.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkDocumentDir($object)
+{
+	$moduleOutput = lmdbreferralGetLinkDocumentRootDir($object);
+	if ($moduleOutput === '') {
+		return '';
+	}
+
+	return $moduleOutput.'/'.lmdbreferralGetLinkDocumentSubdir($object);
 }
 
 /**
@@ -128,6 +143,143 @@ function lmdbreferralGetLinkDocumentSubdir($object)
 	}
 
 	return $object->element.'/'.dol_sanitizeFileName((string) $object->ref);
+}
+
+/**
+ * Return the main generated PDF relative path for a referral link.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkMainPdfRelativePath($object)
+{
+	$rootDir = lmdbreferralGetLinkDocumentRootDir($object);
+	if ($rootDir === '') {
+		return '';
+	}
+
+	if (!function_exists('dol_sanitizeFileName')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	}
+
+	$modulepart = lmdbreferralGetLinkDocumentModulePart();
+	$candidates = array();
+	if (!empty($object->last_main_doc)) {
+		$lastMainDoc = str_replace('\\', '/', (string) $object->last_main_doc);
+		$lastMainDocWithoutModule = preg_replace('/^'.preg_quote($modulepart, '/').'\//', '', $lastMainDoc);
+		if (is_string($lastMainDocWithoutModule)) {
+			$candidates[] = $lastMainDocWithoutModule;
+		}
+		$candidates[] = $lastMainDoc;
+	}
+	$candidates[] = lmdbreferralGetLinkDocumentSubdir($object).'/'.dol_sanitizeFileName((string) $object->ref).'.pdf';
+
+	foreach ($candidates as $candidate) {
+		$candidate = trim((string) $candidate, '/');
+		if ($candidate === '' || preg_match('/(^|\/)\.\.(\/|$)/', $candidate)) {
+			continue;
+		}
+		$fullpath = $rootDir.'/'.$candidate;
+		$encodedPath = function_exists('dol_osencode') ? dol_osencode($fullpath) : $fullpath;
+		if (is_file($encodedPath)) {
+			if (strpos($candidate, $modulepart.'/') === 0) {
+				$candidate = substr($candidate, strlen($modulepart) + 1);
+			}
+
+			return $candidate;
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Return banner HTML with the native preview of the main generated PDF.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkBannerPdfPreviewHtml($object)
+{
+	global $conf, $langs;
+
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+
+	$rootDir = lmdbreferralGetLinkDocumentRootDir($object);
+	$relativePdf = lmdbreferralGetLinkMainPdfRelativePath($object);
+	if ($rootDir === '' || $relativePdf === '') {
+		return '';
+	}
+
+	$modulepart = lmdbreferralGetLinkDocumentModulePart();
+	$entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+	$pdfPath = $rootDir.'/'.$relativePdf;
+	$encodedPdfPath = function_exists('dol_osencode') ? dol_osencode($pdfPath) : $pdfPath;
+	if (!is_file($encodedPdfPath)) {
+		return '';
+	}
+
+	$pathinfo = pathinfo($relativePdf);
+	$previewDirname = isset($pathinfo['dirname']) && (string) $pathinfo['dirname'] !== '.' ? (string) $pathinfo['dirname'] : '';
+	$previewBasename = (string) ($pathinfo['filename'] ?? dol_sanitizeFileName((string) $object->ref));
+	$previewRelative = ($previewDirname !== '' ? $previewDirname.'/' : '').$previewBasename.'.pdf_preview.png';
+	$previewRelativeBis = ($previewDirname !== '' ? $previewDirname.'/' : '').$previewBasename.'.pdf_preview-0.png';
+	$previewPath = $rootDir.'/'.$previewRelative;
+	$previewPathBis = $rootDir.'/'.$previewRelativeBis;
+	$encodedPreviewPath = function_exists('dol_osencode') ? dol_osencode($previewPath) : $previewPath;
+	$encodedPreviewPathBis = function_exists('dol_osencode') ? dol_osencode($previewPathBis) : $previewPathBis;
+	$previewForDisplayRelative = '';
+	$previewForDisplayPath = '';
+	if (is_file($encodedPreviewPath)) {
+		$previewForDisplayRelative = $previewRelative;
+		$previewForDisplayPath = $encodedPreviewPath;
+	} elseif (is_file($encodedPreviewPathBis)) {
+		$previewForDisplayRelative = $previewRelativeBis;
+		$previewForDisplayPath = $encodedPreviewPathBis;
+	}
+
+	if (class_exists('Imagick') && ($previewForDisplayPath === '' || filemtime($previewForDisplayPath) < filemtime($encodedPdfPath))) {
+		$convertResult = dol_convert_file($pdfPath, 'png', $previewPath, '0');
+		if ($convertResult <= 0) {
+			dol_syslog('lmdbreferral banner PDF preview generation skipped for '.$relativePdf.' result='.$convertResult, LOG_DEBUG);
+		}
+		if (is_file($encodedPreviewPath)) {
+			$previewForDisplayRelative = $previewRelative;
+			$previewForDisplayPath = $encodedPreviewPath;
+		} elseif (is_file($encodedPreviewPathBis)) {
+			$previewForDisplayRelative = $previewRelativeBis;
+			$previewForDisplayPath = $encodedPreviewPathBis;
+		}
+	}
+
+	$previewUrl = '';
+	if (function_exists('getAdvancedPreviewUrl')) {
+		$tmpPreviewUrl = getAdvancedPreviewUrl($modulepart, $relativePdf, 1, '&entity='.$entity);
+		if (is_array($tmpPreviewUrl) && !empty($tmpPreviewUrl['url'])) {
+			$previewUrl = '<a href="'.$tmpPreviewUrl['url'].'"'
+				.(!empty($tmpPreviewUrl['css']) ? ' class="'.$tmpPreviewUrl['css'].'"' : '')
+				.(!empty($tmpPreviewUrl['mime']) ? ' mime="'.$tmpPreviewUrl['mime'].'"' : '')
+				.(!empty($tmpPreviewUrl['target']) ? ' target="'.$tmpPreviewUrl['target'].'"' : '')
+				.'>';
+		}
+	}
+	if ($previewUrl === '') {
+		$previewUrl = '<a href="'.DOL_URL_ROOT.'/document.php?modulepart='.urlencode($modulepart).'&entity='.$entity.'&attachment=0&file='.urlencode($relativePdf).'" target="_blank">';
+	}
+
+	$out = '<div class="floatleft inline-block valignmiddle divphotoref">';
+	$out .= '<div class="photoref">';
+	$out .= $previewUrl;
+	if ($previewForDisplayRelative !== '') {
+		$out .= '<img class="photo photowithborder" src="'.DOL_URL_ROOT.'/viewimage.php?modulepart='.urlencode($modulepart).'&entity='.$entity.'&file='.urlencode($previewForDisplayRelative).'" alt="'.dol_escape_htmltag($langs->trans('Preview')).'">';
+	} else {
+		$out .= '<span class="photo photowithborder valignmiddle">'.img_mime($relativePdf, $langs->trans('Preview'), 'pictopreview').'</span>';
+	}
+	$out .= '</a>';
+	$out .= '</div>';
+	$out .= '</div>';
+
+	return $out;
 }
 
 /**

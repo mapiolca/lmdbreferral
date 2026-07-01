@@ -79,7 +79,8 @@ print dol_get_fiche_head($head, 'documents', $langs->trans('LmdbReferralLink'), 
 
 $linkback = '<a href="'.dol_buildpath('/lmdbreferral/list.php', 1).'">'.$langs->trans('BackToList').'</a>';
 $morehtmlref = '';
-dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
+$morehtmlleft = lmdbreferralGetLinkBannerPdfPreviewHtml($object);
+dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref, '', 0, $morehtmlleft);
 
 print '<div class="fichecenter">';
 print '<div class="underbanner clearboth"></div>';
