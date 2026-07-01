@@ -2,12 +2,4 @@
 
 ## 1.0.0
 
-- Centrage vertical des contenus dans les cellules des tableaux du PDF, en conservant les alignements horizontaux.
-- Adaptation des cadres d'adresse du PDF pour afficher le parrain comme émetteur et le filleul comme destinataire.
-- Ajout de la preview PDF dans le cadre natif de la bannière, correction de la suppression depuis la fiche et alignement du PDF sur le style natif Dolibarr.
-- Application de l'arrondi Dolibarr des prix totaux aux montants du module, avec affichage de la devise.
-- Repositionnement des boutons d'action de la fiche lien dans la zone native Dolibarr.
-- Amélioration du rendu responsive de la fiche lien et calcul de l'âge depuis la date de création du tiers filleul.
-- Correction du rattrapage des devis déjà signés lors de la création tardive d'un lien de parrainage, y compris les devis classés facturés.
 - Création du module `lmdbreferral` avec ID Dolibarr `450023`.
-- Autorisation de suppression des liens de parrainage transformés pour les utilisateurs disposant du droit de suppression et les administrateurs.
