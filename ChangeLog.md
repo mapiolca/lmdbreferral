@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-- Centrage horizontal des contenus dans les cellules des tableaux du PDF.
+- Centrage vertical des contenus dans les cellules des tableaux du PDF, en conservant les alignements horizontaux.
 - Adaptation des cadres d'adresse du PDF pour afficher le parrain comme émetteur et le filleul comme destinataire.
 - Ajout de la preview PDF dans le cadre natif de la bannière, correction de la suppression depuis la fiche et alignement du PDF sur le style natif Dolibarr.
 - Application de l'arrondi Dolibarr des prix totaux aux montants du module, avec affichage de la devise.

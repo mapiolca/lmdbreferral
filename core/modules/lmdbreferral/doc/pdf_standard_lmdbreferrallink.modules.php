@@ -554,6 +554,24 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	}
 
 	/**
+	 * Write a vertically centered table cell.
+	 *
+	 * @param TCPDF|TCPDI $pdf PDF instance
+	 * @param float       $width Cell width
+	 * @param float       $height Cell height
+	 * @param string      $text Cell text
+	 * @param int|string  $border Border mode
+	 * @param string      $align Horizontal alignment
+	 * @param int|bool    $fill Fill flag
+	 * @param int         $ln Line mode
+	 * @return void
+	 */
+	private function writeTableCell(&$pdf, $width, $height, $text, $border, $align, $fill, $ln)
+	{
+		$pdf->MultiCell($width, $height, $text, $border, $align, $fill, $ln, null, null, true, 0, false, true, $height, 'M');
+	}
+
+	/**
 	 * Write a two-pair information row.
 	 *
 	 * @param TCPDF|TCPDI $pdf PDF instance
@@ -584,21 +602,21 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(55, 55, 55);
 		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($labelWidth, $rowHeight, $this->pdfText($outputlangs, $leftLabel), 1, 'C', 1, 0);
+		$this->writeTableCell($pdf, $labelWidth, $rowHeight, $this->pdfText($outputlangs, $leftLabel), 1, 'L', 1, 0);
 		$pdf->SetFont('', '', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche + $labelWidth, $y);
-		$pdf->MultiCell($valueWidth, $rowHeight, $leftValueText, 1, 'C', 0, 0);
+		$this->writeTableCell($pdf, $valueWidth, $rowHeight, $leftValueText, 1, 'L', 0, 0);
 
 		if ($rightLabel !== '' || $rightValue !== '') {
 			$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 			$pdf->SetXY($this->marge_gauche + $halfWidth + $gap, $y);
-			$pdf->MultiCell($labelWidth, $rowHeight, $this->pdfText($outputlangs, $rightLabel), 1, 'C', 1, 0);
+			$this->writeTableCell($pdf, $labelWidth, $rowHeight, $this->pdfText($outputlangs, $rightLabel), 1, 'L', 1, 0);
 			$pdf->SetFont('', '', max(7, $fontSize - 1));
 			$pdf->SetXY($this->marge_gauche + $halfWidth + $gap + $labelWidth, $y);
-			$pdf->MultiCell($valueWidth, $rowHeight, $rightValueText, 1, 'C', 0, 0);
+			$this->writeTableCell($pdf, $valueWidth, $rowHeight, $rightValueText, 1, 'L', 0, 0);
 		} else {
 			$pdf->SetXY($this->marge_gauche + $halfWidth + $gap, $y);
-			$pdf->MultiCell($halfWidth, $rowHeight, '', 1, 'C', 0, 0);
+			$this->writeTableCell($pdf, $halfWidth, $rowHeight, '', 1, 'L', 0, 0);
 		}
 		$y += $rowHeight;
 	}
@@ -679,10 +697,10 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(45, 45, 45);
 		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 1, 'C', 1, 0);
-		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 1, 'C', 1, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 1, 'C', 1, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 1, 'C', 1, 0);
+		$this->writeTableCell($pdf, $refWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 1, 'L', 1, 0);
+		$this->writeTableCell($pdf, $dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 1, 'L', 1, 0);
+		$this->writeTableCell($pdf, $amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 1, 'R', 1, 0);
+		$this->writeTableCell($pdf, $amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 1, 'R', 1, 0);
 		$y += $rowHeight;
 	}
 
@@ -735,10 +753,10 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(40, 40, 40);
 		$pdf->SetFont('', '', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 1, 'C', 0, 0);
-		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 1, 'C', 0, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 1, 'C', 0, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 1, 'C', 0, 0);
+		$this->writeTableCell($pdf, $refWidth, $rowHeight, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 1, 'L', 0, 0);
+		$this->writeTableCell($pdf, $dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 1, 'L', 0, 0);
+		$this->writeTableCell($pdf, $amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 1, 'R', 0, 0);
+		$this->writeTableCell($pdf, $amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 1, 'R', 0, 0);
 		$y += $rowHeight;
 	}
 
