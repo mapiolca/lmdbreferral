@@ -117,6 +117,8 @@ function lmdbreferralGetLinkDocumentDir($object)
 		return '';
 	}
 
+	lmdbreferralEnsureLinkDocumentDirectory($object, $moduleOutput);
+
 	return $moduleOutput.'/'.lmdbreferralGetLinkDocumentSubdir($object);
 }
 
@@ -142,7 +144,63 @@ function lmdbreferralGetLinkDocumentSubdir($object)
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 	}
 
+	return 'referral/'.$object->element.'/'.dol_sanitizeFileName((string) $object->ref);
+}
+
+/**
+ * Return the legacy document relative path used before the permission-aware directory.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string
+ */
+function lmdbreferralGetLinkLegacyDocumentSubdir($object)
+{
+	if (!function_exists('dol_sanitizeFileName')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	}
+
 	return $object->element.'/'.dol_sanitizeFileName((string) $object->ref);
+}
+
+/**
+ * Move legacy referral link documents to the permission-aware native path.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @param string                  $rootDir Root document directory
+ * @return void
+ */
+function lmdbreferralEnsureLinkDocumentDirectory($object, $rootDir)
+{
+	if ($rootDir === '') {
+		return;
+	}
+	if (!function_exists('dol_mkdir')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	}
+
+	$currentSubdir = lmdbreferralGetLinkDocumentSubdir($object);
+	$legacySubdir = lmdbreferralGetLinkLegacyDocumentSubdir($object);
+	if ($currentSubdir === $legacySubdir) {
+		return;
+	}
+
+	$currentDir = rtrim($rootDir, '/').'/'.$currentSubdir;
+	$legacyDir = rtrim($rootDir, '/').'/'.$legacySubdir;
+	$encodedCurrentDir = function_exists('dol_osencode') ? dol_osencode($currentDir) : $currentDir;
+	$encodedLegacyDir = function_exists('dol_osencode') ? dol_osencode($legacyDir) : $legacyDir;
+	if (!is_dir($encodedLegacyDir) || is_dir($encodedCurrentDir)) {
+		return;
+	}
+
+	$parentDir = dirname($currentDir);
+	if (!is_dir(function_exists('dol_osencode') ? dol_osencode($parentDir) : $parentDir) && dol_mkdir($parentDir) < 0) {
+		dol_syslog(__METHOD__.' unable to create '.$parentDir, LOG_WARNING);
+		return;
+	}
+
+	if (!dol_move_dir($legacyDir, $currentDir, 1, 0, 0)) {
+		dol_syslog(__METHOD__.' unable to move '.$legacyDir.' to '.$currentDir, LOG_WARNING);
+	}
 }
 
 /**
@@ -162,6 +220,8 @@ function lmdbreferralGetLinkMainPdfRelativePath($object)
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 	}
 
+	lmdbreferralEnsureLinkDocumentDirectory($object, $rootDir);
+
 	$modulepart = lmdbreferralGetLinkDocumentModulePart();
 	$candidates = array();
 	if (!empty($object->last_main_doc)) {
@@ -173,6 +233,7 @@ function lmdbreferralGetLinkMainPdfRelativePath($object)
 		$candidates[] = $lastMainDoc;
 	}
 	$candidates[] = lmdbreferralGetLinkDocumentSubdir($object).'/'.dol_sanitizeFileName((string) $object->ref).'.pdf';
+	$candidates[] = lmdbreferralGetLinkLegacyDocumentSubdir($object).'/'.dol_sanitizeFileName((string) $object->ref).'.pdf';
 
 	foreach ($candidates as $candidate) {
 		$candidate = trim((string) $candidate, '/');
