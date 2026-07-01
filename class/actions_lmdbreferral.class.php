@@ -18,6 +18,9 @@ class ActionsLmdbReferral
 	/** @var array<int,string> */
 	public $errors = array();
 
+	/** @var array<int,string> */
+	public $warnings = array();
+
 	/** @var array<string,mixed> */
 	public $results = array();
 
