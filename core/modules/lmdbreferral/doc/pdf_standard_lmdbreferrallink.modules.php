@@ -376,7 +376,9 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$boxGap = 2;
 		$boxWidth = ($width - (3 * $boxGap)) / 4;
 		$daysToFirstSignature = array_key_exists('days_to_first_signature', $stats) ? $stats['days_to_first_signature'] : null;
-		$delayValue = !empty($stats['is_transformed']) ? $this->formatStatsDays($outputlangs, $daysToFirstSignature) : $this->formatStatsDays($outputlangs, (int) ($stats['age_days'] ?? 0));
+		$delayValue = !empty($stats['is_transformed'])
+			? $this->formatStatsDays($outputlangs, $daysToFirstSignature, (string) ($stats['days_to_first_signature_start_date'] ?? ''), (string) ($stats['days_to_first_signature_end_date'] ?? ''))
+			: $this->formatStatsDays($outputlangs, (int) ($stats['age_days'] ?? 0), (string) ($stats['age_start_date'] ?? ''), (string) ($stats['age_end_date'] ?? ''));
 		$delayLabel = !empty($stats['is_transformed']) ? $this->pdfTrans($outputlangs, 'LmdbReferralDaysToFirstSignature') : $this->pdfTrans($outputlangs, 'LmdbReferralLinkAgeDays');
 		$metrics = array(
 			array($this->pdfTrans($outputlangs, 'LmdbReferralSignedPropalsCount'), (string) ((int) ($stats['signed_propals'] ?? 0))),
@@ -802,15 +804,17 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 *
 	 * @param Translate $outputlangs Output language
 	 * @param mixed     $days Number of days
+	 * @param string    $startDate SQL start date
+	 * @param string    $endDate SQL end date
 	 * @return string
 	 */
-	private function formatStatsDays($outputlangs, $days)
+	private function formatStatsDays($outputlangs, $days, $startDate = '', $endDate = '')
 	{
 		if ($days === null) {
 			return $this->pdfTrans($outputlangs, 'NotAvailable');
 		}
 
-		return ((int) $days).' '.$this->pdfTrans($outputlangs, 'Days');
+		return lmdbreferralFormatDurationFromDays((int) $days, $startDate, $endDate, $outputlangs);
 	}
 
 	/**

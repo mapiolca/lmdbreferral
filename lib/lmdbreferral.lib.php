@@ -825,7 +825,11 @@ function lmdbreferralFormatAmount($amount, $outlangs = '')
  *     first_signature_date?: string,
  *     last_signature_date?: string,
  *     days_to_first_signature?: int|null,
- *     age_days?: int
+ *     days_to_first_signature_start_date?: string,
+ *     days_to_first_signature_end_date?: string,
+ *     age_days?: int,
+ *     age_start_date?: string,
+ *     age_end_date?: string
  * } $stats Link statistics
  * @return void
  */
@@ -864,7 +868,7 @@ function lmdbreferralPrintLinkStatsBlock(array $stats)
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralLinkAgeDays').'</td>';
-	print '<td class="nowrap">'.lmdbreferralFormatLinkStatsDays((int) ($stats['age_days'] ?? 0)).'</td>';
+	print '<td class="nowrap">'.lmdbreferralFormatLinkStatsDays((int) ($stats['age_days'] ?? 0), (string) ($stats['age_start_date'] ?? ''), (string) ($stats['age_end_date'] ?? '')).'</td>';
 	print '</tr>';
 	print '</table>';
 	print '</div>';
@@ -885,7 +889,7 @@ function lmdbreferralPrintLinkStatsBlock(array $stats)
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralDaysToFirstSignature').'</td>';
-	print '<td class="nowrap">'.lmdbreferralFormatLinkStatsDays($daysToFirstSignature).'</td>';
+	print '<td class="nowrap">'.lmdbreferralFormatLinkStatsDays($daysToFirstSignature, (string) ($stats['days_to_first_signature_start_date'] ?? ''), (string) ($stats['days_to_first_signature_end_date'] ?? '')).'</td>';
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td class="titlefield">'.$langs->trans('LmdbReferralCommercialLockStatus').'</td>';
@@ -916,12 +920,14 @@ function lmdbreferralFormatLinkStatsDate($date)
 }
 
 /**
- * Format an optional day count for link statistics.
+ * Format an optional day count for link statistics as a calendar duration.
  *
- * @param int|null $days Number of days
+ * @param int|null $days      Number of days
+ * @param string   $startDate SQL start date
+ * @param string   $endDate   SQL end date
  * @return string
  */
-function lmdbreferralFormatLinkStatsDays($days)
+function lmdbreferralFormatLinkStatsDays($days, $startDate = '', $endDate = '')
 {
 	global $langs;
 
@@ -929,5 +935,163 @@ function lmdbreferralFormatLinkStatsDays($days)
 		return '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>';
 	}
 
-	return ((int) $days).' '.$langs->trans('Days');
+	return dol_escape_htmltag(lmdbreferralFormatDurationFromDays($days, $startDate, $endDate, $langs));
+}
+
+/**
+ * Format a day count as a years/months/days duration.
+ *
+ * @param int|null         $days      Number of days
+ * @param string           $startDate SQL start date
+ * @param string           $endDate   SQL end date
+ * @param Translate|string $outlangs  Output language or empty string
+ * @return string
+ */
+function lmdbreferralFormatDurationFromDays($days, $startDate = '', $endDate = '', $outlangs = '')
+{
+	global $langs;
+
+	$outputlangs = is_object($outlangs) ? $outlangs : $langs;
+	if ($days === null) {
+		return lmdbreferralDurationTrans($outputlangs, 'NotAvailable');
+	}
+
+	$parts = null;
+	$startTimestamp = lmdbreferralDurationDateToTimestamp($startDate);
+	$endTimestamp = lmdbreferralDurationDateToTimestamp($endDate);
+	if ($startTimestamp > 0 && $endTimestamp > 0) {
+		$parts = lmdbreferralGetCalendarDurationParts($startTimestamp, $endTimestamp);
+	}
+	if (!is_array($parts)) {
+		$parts = lmdbreferralGetApproxDurationParts((int) $days);
+	}
+
+	return lmdbreferralFormatDurationParts($parts, $outputlangs);
+}
+
+/**
+ * Convert a Dolibarr SQL date or timestamp to a timestamp.
+ *
+ * @param mixed $date Date value
+ * @return int
+ */
+function lmdbreferralDurationDateToTimestamp($date)
+{
+	global $db;
+
+	if (empty($date)) {
+		return 0;
+	}
+	if (is_numeric($date)) {
+		return (int) $date;
+	}
+	if (!is_object($db)) {
+		return 0;
+	}
+
+	return (int) $db->jdate($date);
+}
+
+/**
+ * Return calendar duration parts from timestamps.
+ *
+ * @param int $startTimestamp Start timestamp
+ * @param int $endTimestamp   End timestamp
+ * @return array{years:int,months:int,days:int}
+ */
+function lmdbreferralGetCalendarDurationParts($startTimestamp, $endTimestamp)
+{
+	if ($startTimestamp <= 0 || $endTimestamp <= 0) {
+		return lmdbreferralGetApproxDurationParts(0);
+	}
+	if ($endTimestamp < $startTimestamp) {
+		$endTimestamp = $startTimestamp;
+	}
+
+	$start = new DateTimeImmutable('@'.$startTimestamp);
+	$end = new DateTimeImmutable('@'.$endTimestamp);
+	$interval = $start->diff($end);
+
+	return array(
+		'years' => (int) $interval->y,
+		'months' => (int) $interval->m,
+		'days' => (int) $interval->d,
+	);
+}
+
+/**
+ * Return approximate duration parts from a number of days.
+ *
+ * @param int $days Number of days
+ * @return array{years:int,months:int,days:int}
+ */
+function lmdbreferralGetApproxDurationParts($days)
+{
+	$remainingDays = max(0, (int) $days);
+	$years = intdiv($remainingDays, 365);
+	$remainingDays -= $years * 365;
+	$months = intdiv($remainingDays, 30);
+	$remainingDays -= $months * 30;
+
+	return array(
+		'years' => $years,
+		'months' => $months,
+		'days' => $remainingDays,
+	);
+}
+
+/**
+ * Format duration parts.
+ *
+ * @param array{years:int,months:int,days:int} $parts    Duration parts
+ * @param Translate|string                     $outlangs Output language or empty string
+ * @return string
+ */
+function lmdbreferralFormatDurationParts(array $parts, $outlangs = '')
+{
+	global $langs;
+
+	$outputlangs = is_object($outlangs) ? $outlangs : $langs;
+	$labels = array();
+	$units = array(
+		'years' => array('LmdbReferralDurationYear', 'LmdbReferralDurationYears'),
+		'months' => array('LmdbReferralDurationMonth', 'LmdbReferralDurationMonths'),
+		'days' => array('LmdbReferralDurationDay', 'LmdbReferralDurationDays'),
+	);
+
+	foreach ($units as $unit => $translationKeys) {
+		$value = max(0, (int) $parts[$unit]);
+		if ($value <= 0) {
+			continue;
+		}
+		$labels[] = $value.' '.lmdbreferralDurationTrans($outputlangs, $value > 1 ? $translationKeys[1] : $translationKeys[0]);
+	}
+
+	if (empty($labels)) {
+		$labels[] = '0 '.lmdbreferralDurationTrans($outputlangs, 'LmdbReferralDurationDays');
+	}
+
+	return implode(', ', $labels);
+}
+
+/**
+ * Return a translation without HTML entities when possible.
+ *
+ * @param Translate|string $outlangs Output language or empty string
+ * @param string           $key      Translation key
+ * @return string
+ */
+function lmdbreferralDurationTrans($outlangs, $key)
+{
+	global $langs;
+
+	$outputlangs = is_object($outlangs) ? $outlangs : $langs;
+	if (is_object($outputlangs) && method_exists($outputlangs, 'transnoentitiesnoconv')) {
+		return $outputlangs->transnoentitiesnoconv($key);
+	}
+	if (is_object($outputlangs)) {
+		return html_entity_decode($outputlangs->trans($key), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+	}
+
+	return $key;
 }

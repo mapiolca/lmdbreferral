@@ -159,7 +159,11 @@ class LmdbReferralStats
 	 *     first_signature_date: string,
 	 *     last_signature_date: string,
 	 *     days_to_first_signature: int|null,
+	 *     days_to_first_signature_start_date: string,
+	 *     days_to_first_signature_end_date: string,
 	 *     age_days: int,
+	 *     age_start_date: string,
+	 *     age_end_date: string,
 	 *     propals: array<int,array{fk_propal:int,ref:string,amount_ht:float,amount_ttc:float,date_event:string}>
 	 * }
 	 */
@@ -175,7 +179,11 @@ class LmdbReferralStats
 			'first_signature_date' => '',
 			'last_signature_date' => '',
 			'days_to_first_signature' => null,
+			'days_to_first_signature_start_date' => '',
+			'days_to_first_signature_end_date' => '',
 			'age_days' => 0,
+			'age_start_date' => '',
+			'age_end_date' => '',
 			'propals' => array(),
 		);
 
@@ -191,7 +199,12 @@ class LmdbReferralStats
 		$linkCreationTimestamp = $this->dateToTimestamp(!empty($link->date_creation) ? $link->date_creation : 0);
 		$referredCreationTimestamp = $this->getReferredThirdpartyCreationTimestamp(!empty($link->fk_soc_filleul) ? (int) $link->fk_soc_filleul : 0);
 		$ageStartTimestamp = $referredCreationTimestamp > 0 ? $referredCreationTimestamp : $linkCreationTimestamp;
-		$out['age_days'] = $this->getDateDiffInDays($ageStartTimestamp, dol_now());
+		$ageEndTimestamp = dol_now();
+		$out['age_days'] = $this->getDateDiffInDays($ageStartTimestamp, $ageEndTimestamp);
+		if ($ageStartTimestamp > 0) {
+			$out['age_start_date'] = $this->db->idate($ageStartTimestamp);
+			$out['age_end_date'] = $this->db->idate($ageEndTimestamp);
+		}
 
 		$where = array(
 			'e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')',
@@ -221,7 +234,13 @@ class LmdbReferralStats
 		$out['is_locked'] = $out['is_transformed'];
 		$out['average_basket_ht'] = lmdbreferralRoundAmount($out['signed_propals'] > 0 ? ($out['amount_ht'] / $out['signed_propals']) : 0.0);
 		if ($out['first_signature_date'] !== '' && !empty($link->date_creation)) {
-			$out['days_to_first_signature'] = $this->getDateDiffInDays($this->dateToTimestamp($link->date_creation), $this->dateToTimestamp($out['first_signature_date']));
+			$delayStartTimestamp = $this->dateToTimestamp($link->date_creation);
+			$delayEndTimestamp = $this->dateToTimestamp($out['first_signature_date']);
+			$out['days_to_first_signature'] = $this->getDateDiffInDays($delayStartTimestamp, $delayEndTimestamp);
+			if ($delayStartTimestamp > 0 && $delayEndTimestamp > 0) {
+				$out['days_to_first_signature_start_date'] = $this->db->idate($delayStartTimestamp);
+				$out['days_to_first_signature_end_date'] = $this->db->idate($delayEndTimestamp);
+			}
 		}
 
 		$sql = 'SELECT e.fk_propal, e.amount_ht, e.amount_ttc, e.date_event, p.ref as propal_ref';
