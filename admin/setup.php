@@ -88,7 +88,7 @@ if ($action === 'save') {
 	if (!is_array($selectedUsers)) {
 		$selectedUsers = array();
 	}
-	$selectableUsers = lmdbreferralGetSelectableReferrerUsers(false);
+	$selectableUsers = lmdbreferralGetSelectableReferrerUsers(false, 0, false);
 	$selected = array();
 	foreach ($selectedUsers as $id) {
 		if ((int) $id > 0 && isset($selectableUsers[(int) $id])) {
@@ -224,10 +224,10 @@ function lmdbreferral_print_setup_int($name, $label, $default, $min)
  */
 function lmdbreferral_print_setup_users()
 {
-	global $db, $langs;
+	global $conf, $db, $langs;
 
 	$selected = array();
-	$sql = 'SELECT DISTINCT fk_user FROM '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility WHERE entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').') AND active = 1';
+	$sql = 'SELECT DISTINCT fk_user FROM '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility WHERE entity = '.((int) $conf->entity).' AND active = 1';
 	$resql = $db->query($sql);
 	if ($resql) {
 		while ($obj = $db->fetch_object($resql)) {
@@ -237,7 +237,7 @@ function lmdbreferral_print_setup_users()
 
 	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans('LmdbReferralEligibleUsers').'</td><td>';
 	print '<select class="flat minwidth500 multiselect2" multiple name="eligible_users[]" id="eligible_users">';
-	$selectableUsers = lmdbreferralGetSelectableReferrerUsers(false);
+	$selectableUsers = lmdbreferralGetSelectableReferrerUsers(false, 0, false);
 	foreach ($selectableUsers as $selectableUser) {
 		$label = lmdbreferralFormatUserReferrerLabel($selectableUser['firstname'], $selectableUser['lastname'], $selectableUser['login']);
 		print '<option value="'.((int) $selectableUser['rowid']).'"'.(!empty($selected[(int) $selectableUser['rowid']]) ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';

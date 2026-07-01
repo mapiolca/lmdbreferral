@@ -519,14 +519,15 @@ function lmdbreferralCheckToken()
  * Return entity SQL scope.
  *
  * @param string $element Element key
+ * @param int    $shared  0=current entity only, 1=current entity + shared entities
  * @return string
  */
-function lmdbreferralGetEntitySql($element = 'lmdbreferrallink')
+function lmdbreferralGetEntitySql($element = 'lmdbreferrallink', $shared = 1)
 {
 	global $conf, $db;
 
 	if (function_exists('getEntity')) {
-		return $db->sanitize(getEntity($element));
+		return $db->sanitize(getEntity($element, $shared));
 	}
 
 	return (string) ((int) $conf->entity);
@@ -583,10 +584,11 @@ function lmdbreferralUserComboFilterEnabled($name)
 /**
  * Return SQL conditions for users that can be selected as referrers in the current entity scope.
  *
- * @param string $alias SQL alias for llx_user
+ * @param string $alias          SQL alias for llx_user
+ * @param bool   $sharedEntities True to include shared entities, false for current entity only
  * @return string
  */
-function lmdbreferralGetSelectableReferrerUserWhere($alias = 'u')
+function lmdbreferralGetSelectableReferrerUserWhere($alias = 'u', $sharedEntities = true)
 {
 	global $conf, $user;
 
@@ -597,13 +599,16 @@ function lmdbreferralGetSelectableReferrerUserWhere($alias = 'u')
 
 	$conditions = array();
 	if (function_exists('isModEnabled') && isModEnabled('multicompany') && getDolGlobalInt('MULTICOMPANY_TRANSVERSE_MODE')) {
-		if (is_object($user) && !empty($user->admin) && empty($user->entity) && (int) $conf->entity === 1) {
-			$conditions[] = $alias.'.entity IS NOT NULL';
+		if ($sharedEntities) {
+			$userScope = lmdbreferralGetEntitySql('user');
+			$userGroupScope = lmdbreferralGetEntitySql('usergroup');
 		} else {
-			$conditions[] = '('.$alias.'.entity = 0 OR EXISTS (SELECT ug.fk_user FROM '.MAIN_DB_PREFIX.'usergroup_user as ug WHERE ug.fk_user = '.$alias.'.rowid AND ug.entity IN ('.lmdbreferralGetEntitySql('usergroup').')))';
+			$userScope = '0,'.((int) $conf->entity);
+			$userGroupScope = (string) ((int) $conf->entity);
 		}
+		$conditions[] = '('.$alias.'.entity IN ('.$userScope.') OR EXISTS (SELECT ug.fk_user FROM '.MAIN_DB_PREFIX.'usergroup_user as ug WHERE ug.fk_user = '.$alias.'.rowid AND ug.entity IN ('.$userGroupScope.')))';
 	} else {
-		$conditions[] = $alias.'.entity IN ('.lmdbreferralGetEntitySql('user').')';
+		$conditions[] = $alias.'.entity IN ('.lmdbreferralGetEntitySql('user', $sharedEntities ? 1 : 0).')';
 	}
 
 	$conditions[] = $alias.'.statut <> 0';
@@ -620,24 +625,26 @@ function lmdbreferralGetSelectableReferrerUserWhere($alias = 'u')
 /**
  * Return users that can be selected as referrers.
  *
- * @param bool $onlyEligible Restrict to users enabled in referral settings
- * @param int  $userId       Optional user id filter
+ * @param bool $onlyEligible   Restrict to users enabled in referral settings
+ * @param int  $userId         Optional user id filter
+ * @param bool $sharedEntities True to include shared entities, false for current entity only
  * @return array<int,array{rowid:int,lastname:string,firstname:string,login:string}>
  */
-function lmdbreferralGetSelectableReferrerUsers($onlyEligible = false, $userId = 0)
+function lmdbreferralGetSelectableReferrerUsers($onlyEligible = false, $userId = 0, $sharedEntities = true)
 {
-	global $db;
+	global $conf, $db;
 
 	$users = array();
 	$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.login';
 	$sql .= ' FROM '.MAIN_DB_PREFIX.'user as u';
 	if ($onlyEligible) {
+		$eligibilityEntityScope = $sharedEntities ? lmdbreferralGetEntitySql('lmdbreferralusereligibility') : (string) ((int) $conf->entity);
 		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility as e';
 		$sql .= ' ON e.fk_user = u.rowid';
 		$sql .= ' AND e.active = 1';
-		$sql .= ' AND e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').')';
+		$sql .= ' AND e.entity IN ('.$eligibilityEntityScope.')';
 	}
-	$sql .= ' WHERE '.lmdbreferralGetSelectableReferrerUserWhere('u');
+	$sql .= ' WHERE '.lmdbreferralGetSelectableReferrerUserWhere('u', $sharedEntities);
 	if ((int) $userId > 0) {
 		$sql .= ' AND u.rowid = '.((int) $userId);
 	}
@@ -665,17 +672,18 @@ function lmdbreferralGetSelectableReferrerUsers($onlyEligible = false, $userId =
 /**
  * Tell if a user can currently be selected as a referrer.
  *
- * @param int  $userId       User id
- * @param bool $onlyEligible Restrict to users enabled in referral settings
+ * @param int  $userId         User id
+ * @param bool $onlyEligible   Restrict to users enabled in referral settings
+ * @param bool $sharedEntities True to include shared entities, false for current entity only
  * @return bool
  */
-function lmdbreferralIsSelectableReferrerUser($userId, $onlyEligible = false)
+function lmdbreferralIsSelectableReferrerUser($userId, $onlyEligible = false, $sharedEntities = true)
 {
 	if ((int) $userId <= 0) {
 		return false;
 	}
 
-	$users = lmdbreferralGetSelectableReferrerUsers($onlyEligible, (int) $userId);
+	$users = lmdbreferralGetSelectableReferrerUsers($onlyEligible, (int) $userId, $sharedEntities);
 
 	return isset($users[(int) $userId]);
 }
