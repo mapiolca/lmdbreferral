@@ -246,12 +246,18 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 			$filleul = new Societe($this->db);
 			$filleulLoaded = ((int) $object->fk_soc_filleul > 0 && $filleul->fetch((int) $object->fk_soc_filleul) > 0);
 			$thirdparty = $filleulLoaded ? $filleul : null;
+			$referrerThirdparty = $this->getReferrerThirdparty($object);
+			$referrerUser = !is_object($referrerThirdparty) ? $this->getReferrerUser($object) : null;
+			$sourceForAddress = is_object($referrerThirdparty) ? $referrerThirdparty : $this->emetteur;
 			$hautcadre = 40;
 
 			$senderText = '';
-			if (is_object($this->emetteur)) {
-				$senderText = pdf_build_address($outputlangs, $this->emetteur, ($thirdparty ?: ''), '', 0, 'source', $object);
+			if (is_object($referrerThirdparty)) {
+				$senderText = pdf_build_address($outputlangs, $referrerThirdparty, ($thirdparty ?: ''), '', 0, 'source', $object);
+			} elseif (is_object($referrerUser)) {
+				$senderText = $this->buildUserAddressBlock($referrerUser, $outputlangs);
 			}
+			$senderName = $this->getReferrerPdfName($referrerThirdparty, $referrerUser, $outputlangs);
 
 			$posy = 42 + $topShift;
 			$senderX = $this->marge_gauche;
@@ -263,17 +269,17 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 				$pdf->SetTextColor(0, 0, 0);
 				$pdf->SetFont('', '', $defaultFontSize - 2);
 				$pdf->SetXY($senderX, $posy - 5);
-				$pdf->MultiCell(80, 5, $outputlangs->transnoentities('BillFrom'), 0, $ltrdirection);
+				$pdf->MultiCell(80, 5, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralPdfReferrer')), 0, $ltrdirection);
 				$pdf->SetFillColor(230, 230, 230);
 				$pdf->RoundedRect($senderX, $posy, 82, $hautcadre, $this->corner_radius, '1234', 'F');
 			}
 
 			$currentY = $posy + 3;
-			if (is_object($this->emetteur) && !getDolGlobalString('MAIN_PDF_HIDE_SENDER_NAME')) {
+			if ($senderName !== '' && !getDolGlobalString('MAIN_PDF_HIDE_SENDER_NAME')) {
 				$pdf->SetTextColor(0, 0, 60);
 				$pdf->SetFont('', 'B', $defaultFontSize);
 				$pdf->SetXY($senderX + 2, $currentY);
-				$pdf->MultiCell(80, 4, $outputlangs->convToOutputCharset($this->emetteur->name), 0, $ltrdirection);
+				$pdf->MultiCell(80, 4, $this->pdfText($outputlangs, $senderName), 0, $ltrdirection);
 				$currentY = $pdf->GetY();
 			}
 			$pdf->SetTextColor(0, 0, 60);
@@ -287,13 +293,13 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 				$recipientX = $this->marge_gauche;
 			}
 			$recipientName = is_object($thirdparty) ? pdfBuildThirdpartyName($thirdparty, $outputlangs) : $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'NotAvailable'));
-			$recipientText = is_object($thirdparty) && is_object($this->emetteur) ? pdf_build_address($outputlangs, $this->emetteur, $thirdparty, '', 0, 'target', $object) : '';
+			$recipientText = is_object($thirdparty) && is_object($sourceForAddress) ? pdf_build_address($outputlangs, $sourceForAddress, $thirdparty, '', 0, 'target', $object) : '';
 
 			if (!getDolGlobalString('MAIN_PDF_NO_RECIPENT_FRAME')) {
 				$pdf->SetTextColor(0, 0, 0);
 				$pdf->SetFont('', '', $defaultFontSize - 2);
 				$pdf->SetXY($recipientX + 2, $posy - 5);
-				$pdf->MultiCell($recipientWidth, 5, $outputlangs->transnoentities('BillTo'), 0, $ltrdirection);
+				$pdf->MultiCell($recipientWidth, 5, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralPdfReferred')), 0, $ltrdirection);
 				$pdf->RoundedRect($recipientX, $posy, $recipientWidth, $hautcadre, $this->corner_radius, '1234', 'D');
 			}
 
@@ -578,21 +584,21 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(55, 55, 55);
 		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($labelWidth, $rowHeight, $this->pdfText($outputlangs, $leftLabel), 1, 'L', 1, 0);
+		$pdf->MultiCell($labelWidth, $rowHeight, $this->pdfText($outputlangs, $leftLabel), 1, 'C', 1, 0);
 		$pdf->SetFont('', '', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche + $labelWidth, $y);
-		$pdf->MultiCell($valueWidth, $rowHeight, $leftValueText, 1, 'L', 0, 0);
+		$pdf->MultiCell($valueWidth, $rowHeight, $leftValueText, 1, 'C', 0, 0);
 
 		if ($rightLabel !== '' || $rightValue !== '') {
 			$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 			$pdf->SetXY($this->marge_gauche + $halfWidth + $gap, $y);
-			$pdf->MultiCell($labelWidth, $rowHeight, $this->pdfText($outputlangs, $rightLabel), 1, 'L', 1, 0);
+			$pdf->MultiCell($labelWidth, $rowHeight, $this->pdfText($outputlangs, $rightLabel), 1, 'C', 1, 0);
 			$pdf->SetFont('', '', max(7, $fontSize - 1));
 			$pdf->SetXY($this->marge_gauche + $halfWidth + $gap + $labelWidth, $y);
-			$pdf->MultiCell($valueWidth, $rowHeight, $rightValueText, 1, 'L', 0, 0);
+			$pdf->MultiCell($valueWidth, $rowHeight, $rightValueText, 1, 'C', 0, 0);
 		} else {
 			$pdf->SetXY($this->marge_gauche + $halfWidth + $gap, $y);
-			$pdf->MultiCell($halfWidth, $rowHeight, '', 1, 'L', 0, 0);
+			$pdf->MultiCell($halfWidth, $rowHeight, '', 1, 'C', 0, 0);
 		}
 		$y += $rowHeight;
 	}
@@ -673,10 +679,10 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(45, 45, 45);
 		$pdf->SetFont('', 'B', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 1, 'L', 1, 0);
-		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 1, 'L', 1, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 1, 'R', 1, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 1, 'R', 1, 0);
+		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'Ref')), 1, 'C', 1, 0);
+		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignatureDate')), 1, 'C', 1, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountHT')), 1, 'C', 1, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'LmdbReferralSignedAmountTTC')), 1, 'C', 1, 0);
 		$y += $rowHeight;
 	}
 
@@ -729,10 +735,10 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetTextColor(40, 40, 40);
 		$pdf->SetFont('', '', max(7, $fontSize - 1));
 		$pdf->SetXY($this->marge_gauche, $y);
-		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 1, 'L', 0, 0);
-		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 1, 'L', 0, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 1, 'R', 0, 0);
-		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 1, 'R', 0, 0);
+		$pdf->MultiCell($refWidth, $rowHeight, $this->pdfText($outputlangs, (string) ($propal['ref'] ?? '')), 1, 'C', 0, 0);
+		$pdf->MultiCell($dateWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatOptionalDate($outputlangs, (string) ($propal['date_event'] ?? ''))), 1, 'C', 0, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ht'] ?? 0.0))), 1, 'C', 0, 0);
+		$pdf->MultiCell($amountWidth, $rowHeight, $this->pdfText($outputlangs, $this->formatAmount((float) ($propal['amount_ttc'] ?? 0.0))), 1, 'C', 0, 0);
 		$y += $rowHeight;
 	}
 
@@ -825,6 +831,100 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		}
 
 		return $outputlangs->trans('NotAvailable');
+	}
+
+	/**
+	 * Return the thirdparty referrer when applicable.
+	 *
+	 * @param LmdbReferralLink $object Object
+	 * @return Societe|null
+	 */
+	private function getReferrerThirdparty($object)
+	{
+		if ($object->referrer_type !== 'soc' || (int) $object->fk_soc_parrain <= 0) {
+			return null;
+		}
+
+		$soc = new Societe($this->db);
+		if ($soc->fetch((int) $object->fk_soc_parrain) > 0) {
+			return $soc;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Return the user referrer when applicable.
+	 *
+	 * @param LmdbReferralLink $object Object
+	 * @return User|null
+	 */
+	private function getReferrerUser($object)
+	{
+		if ($object->referrer_type !== 'user' || (int) $object->fk_user_parrain <= 0) {
+			return null;
+		}
+
+		$tmpuser = new User($this->db);
+		if ($tmpuser->fetch((int) $object->fk_user_parrain) > 0) {
+			return $tmpuser;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Return the referrer display name for the PDF address block.
+	 *
+	 * @param Societe|null $thirdpartyReferrer Thirdparty referrer
+	 * @param User|null    $userReferrer User referrer
+	 * @param Translate    $outputlangs Output language
+	 * @return string
+	 */
+	private function getReferrerPdfName($thirdpartyReferrer, $userReferrer, $outputlangs)
+	{
+		if (is_object($thirdpartyReferrer)) {
+			return pdfBuildThirdpartyName($thirdpartyReferrer, $outputlangs);
+		}
+		if (is_object($userReferrer)) {
+			return $userReferrer->getFullName($outputlangs);
+		}
+
+		return $this->pdfTrans($outputlangs, 'NotAvailable');
+	}
+
+	/**
+	 * Build a PDF address block from a Dolibarr user.
+	 *
+	 * @param User      $userReferrer User referrer
+	 * @param Translate $outputlangs Output language
+	 * @return string
+	 */
+	private function buildUserAddressBlock($userReferrer, $outputlangs)
+	{
+		$lines = array();
+		$addressParts = array();
+		if (property_exists($userReferrer, 'address') && !empty($userReferrer->address)) {
+			$addressParts[] = (string) $userReferrer->address;
+		}
+		$zipTown = trim((property_exists($userReferrer, 'zip') && !empty($userReferrer->zip) ? (string) $userReferrer->zip.' ' : '').(property_exists($userReferrer, 'town') && !empty($userReferrer->town) ? (string) $userReferrer->town : ''));
+		if ($zipTown !== '') {
+			$addressParts[] = $zipTown;
+		}
+		if (!empty($addressParts)) {
+			$lines[] = implode("\n", $addressParts);
+		}
+		if (!empty($userReferrer->office_phone)) {
+			$lines[] = $outputlangs->transnoentities('PhoneShort').': '.$userReferrer->office_phone;
+		}
+		if (!empty($userReferrer->user_mobile)) {
+			$lines[] = $outputlangs->transnoentities('PhoneMobile').': '.$userReferrer->user_mobile;
+		}
+		if (!empty($userReferrer->email)) {
+			$lines[] = $outputlangs->transnoentities('Email').': '.$userReferrer->email;
+		}
+
+		return $outputlangs->convToOutputCharset(implode("\n", $lines));
 	}
 
 	/**
