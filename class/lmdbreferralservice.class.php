@@ -858,17 +858,12 @@ class LmdbReferralService
 			$sql .= ' WHERE rowid = '.((int) $id);
 			$sql .= ' AND entity IN ('.lmdbreferralGetEntitySql('societe').')';
 			$sql .= ' AND status = 1';
-		} else {
-			$sql = 'SELECT u.rowid FROM '.MAIN_DB_PREFIX.'user as u';
-			$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility as e ON e.fk_user = u.rowid';
-			$sql .= ' WHERE u.rowid = '.((int) $id);
-			$sql .= ' AND u.statut = 1';
-			$sql .= ' AND e.active = 1';
-			$sql .= ' AND e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').')';
-		}
-		$resql = $this->db->query($sql);
+			$resql = $this->db->query($sql);
 
-		return ($resql && $this->db->num_rows($resql) > 0);
+			return ($resql && $this->db->num_rows($resql) > 0);
+		}
+
+		return lmdbreferralIsSelectableReferrerUser((int) $id, true);
 	}
 
 	/**

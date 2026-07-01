@@ -568,6 +568,134 @@ function lmdbreferralGetNumberingEntitySql($object = null)
 }
 
 /**
+ * Tell if a native Dolibarr user combobox filter is enabled.
+ *
+ * @param string $name Constant name
+ * @return bool
+ */
+function lmdbreferralUserComboFilterEnabled($name)
+{
+	$value = function_exists('getDolUserString') ? getDolUserString($name, getDolGlobalString($name)) : getDolGlobalString($name);
+
+	return !empty($value);
+}
+
+/**
+ * Return SQL conditions for users that can be selected as referrers in the current entity scope.
+ *
+ * @param string $alias SQL alias for llx_user
+ * @return string
+ */
+function lmdbreferralGetSelectableReferrerUserWhere($alias = 'u')
+{
+	global $conf, $user;
+
+	$alias = preg_replace('/[^a-zA-Z0-9_]/', '', $alias);
+	if ($alias === '') {
+		$alias = 'u';
+	}
+
+	$conditions = array();
+	if (function_exists('isModEnabled') && isModEnabled('multicompany') && getDolGlobalInt('MULTICOMPANY_TRANSVERSE_MODE')) {
+		if (is_object($user) && !empty($user->admin) && empty($user->entity) && (int) $conf->entity === 1) {
+			$conditions[] = $alias.'.entity IS NOT NULL';
+		} else {
+			$conditions[] = '('.$alias.'.entity = 0 OR EXISTS (SELECT ug.fk_user FROM '.MAIN_DB_PREFIX.'usergroup_user as ug WHERE ug.fk_user = '.$alias.'.rowid AND ug.entity IN ('.lmdbreferralGetEntitySql('usergroup').')))';
+		}
+	} else {
+		$conditions[] = $alias.'.entity IN ('.lmdbreferralGetEntitySql('user').')';
+	}
+
+	$conditions[] = $alias.'.statut <> 0';
+	if (lmdbreferralUserComboFilterEnabled('USER_HIDE_NONEMPLOYEE_IN_COMBOBOX')) {
+		$conditions[] = $alias.'.employee <> 0';
+	}
+	if (lmdbreferralUserComboFilterEnabled('USER_HIDE_EXTERNAL_IN_COMBOBOX')) {
+		$conditions[] = $alias.'.fk_soc IS NULL';
+	}
+
+	return implode(' AND ', $conditions);
+}
+
+/**
+ * Return users that can be selected as referrers.
+ *
+ * @param bool $onlyEligible Restrict to users enabled in referral settings
+ * @param int  $userId       Optional user id filter
+ * @return array<int,array{rowid:int,lastname:string,firstname:string,login:string}>
+ */
+function lmdbreferralGetSelectableReferrerUsers($onlyEligible = false, $userId = 0)
+{
+	global $db;
+
+	$users = array();
+	$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.login';
+	$sql .= ' FROM '.MAIN_DB_PREFIX.'user as u';
+	if ($onlyEligible) {
+		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility as e';
+		$sql .= ' ON e.fk_user = u.rowid';
+		$sql .= ' AND e.active = 1';
+		$sql .= ' AND e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').')';
+	}
+	$sql .= ' WHERE '.lmdbreferralGetSelectableReferrerUserWhere('u');
+	if ((int) $userId > 0) {
+		$sql .= ' AND u.rowid = '.((int) $userId);
+	}
+	$sql .= ' ORDER BY u.lastname ASC, u.firstname ASC, u.login ASC';
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		dol_syslog(__METHOD__.' '.$db->lasterror(), LOG_WARNING);
+		return $users;
+	}
+
+	while (is_object($obj = $db->fetch_object($resql))) {
+		$users[(int) $obj->rowid] = array(
+			'rowid' => (int) $obj->rowid,
+			'lastname' => (string) $obj->lastname,
+			'firstname' => (string) $obj->firstname,
+			'login' => (string) $obj->login,
+		);
+	}
+	$db->free($resql);
+
+	return $users;
+}
+
+/**
+ * Tell if a user can currently be selected as a referrer.
+ *
+ * @param int  $userId       User id
+ * @param bool $onlyEligible Restrict to users enabled in referral settings
+ * @return bool
+ */
+function lmdbreferralIsSelectableReferrerUser($userId, $onlyEligible = false)
+{
+	if ((int) $userId <= 0) {
+		return false;
+	}
+
+	$users = lmdbreferralGetSelectableReferrerUsers($onlyEligible, (int) $userId);
+
+	return isset($users[(int) $userId]);
+}
+
+/**
+ * Return display label for a user referrer option.
+ *
+ * @param string $firstname First name
+ * @param string $lastname  Last name
+ * @param string $login     Login
+ * @return string
+ */
+function lmdbreferralFormatUserReferrerLabel($firstname, $lastname, $login)
+{
+	$label = trim((string) $firstname.' '.(string) $lastname);
+
+	return $label !== '' ? $label : (string) $login;
+}
+
+/**
  * Return status label translation key.
  *
  * @param int $status Status
@@ -641,34 +769,22 @@ function lmdbreferralSelectReferrer($htmlname, $selected = '', $excludeSocid = 0
 		$sql .= $db->plimit(500);
 		$resql = $db->query($sql);
 		if ($resql && $db->num_rows($resql) > 0) {
-			$out .= '<optgroup label="'.dol_escape_htmltag($langs->trans('ThirdParties')).'">';
 			while ($obj = $db->fetch_object($resql)) {
 				$value = 'soc:'.((int) $obj->rowid);
-				$out .= '<option value="'.$value.'"'.($selected === $value ? ' selected' : '').'>'.dol_escape_htmltag($obj->name).'</option>';
+				$label = $langs->trans('ThirdParty').' - '.$obj->name;
+				$out .= '<option value="'.$value.'"'.($selected === $value ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
 			}
-			$out .= '</optgroup>';
 		}
 	}
 
 	if (getDolGlobalInt('LMDBREFERRAL_ALLOW_USER_REFERRERS')) {
-		$sql = 'SELECT u.rowid, u.lastname, u.firstname, u.login';
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'user as u';
-		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility as e ON e.fk_user = u.rowid';
-		$sql .= ' WHERE e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').')';
-		$sql .= ' AND e.active = 1 AND u.statut = 1';
-		$sql .= ' ORDER BY u.lastname ASC, u.firstname ASC, u.login ASC';
-		$resql = $db->query($sql);
-		if ($resql && $db->num_rows($resql) > 0) {
-			$out .= '<optgroup label="'.dol_escape_htmltag($langs->trans('Users')).'">';
-			while ($obj = $db->fetch_object($resql)) {
-				$label = trim($obj->firstname.' '.$obj->lastname);
-				if ($label === '') {
-					$label = $obj->login;
-				}
-				$value = 'user:'.((int) $obj->rowid);
+		$referrerUsers = lmdbreferralGetSelectableReferrerUsers(true);
+		if (!empty($referrerUsers)) {
+			foreach ($referrerUsers as $referrerUser) {
+				$label = $langs->trans('User').' - '.lmdbreferralFormatUserReferrerLabel($referrerUser['firstname'], $referrerUser['lastname'], $referrerUser['login']);
+				$value = 'user:'.((int) $referrerUser['rowid']);
 				$out .= '<option value="'.$value.'"'.($selected === $value ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
 			}
-			$out .= '</optgroup>';
 		}
 	}
 

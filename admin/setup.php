@@ -88,9 +88,10 @@ if ($action === 'save') {
 	if (!is_array($selectedUsers)) {
 		$selectedUsers = array();
 	}
+	$selectableUsers = lmdbreferralGetSelectableReferrerUsers(false);
 	$selected = array();
 	foreach ($selectedUsers as $id) {
-		if ((int) $id > 0) {
+		if ((int) $id > 0 && isset($selectableUsers[(int) $id])) {
 			$selected[(int) $id] = (int) $id;
 		}
 	}
@@ -107,15 +108,15 @@ if ($action === 'save') {
 		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility';
 		$sql .= ' WHERE entity = '.((int) $conf->entity).' AND fk_user = '.((int) $fkUser);
 		$resql = $db->query($sql);
-			if ($resql && ($obj = $db->fetch_object($resql))) {
-				$sql = 'UPDATE '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility';
-				$sql .= " SET active = 1, date_modification = '".$db->idate(dol_now())."', fk_user_modif = ".((int) $user->id);
-				$sql .= ' WHERE rowid = '.((int) $obj->rowid);
-			} else {
-				$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility';
-				$sql .= ' (entity, fk_user, active, date_creation, fk_user_author)';
-				$sql .= ' VALUES ('.((int) $conf->entity).', '.((int) $fkUser).", 1, '".$db->idate(dol_now())."', ".((int) $user->id).')';
-			}
+		if ($resql && ($obj = $db->fetch_object($resql))) {
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility';
+			$sql .= " SET active = 1, date_modification = '".$db->idate(dol_now())."', fk_user_modif = ".((int) $user->id);
+			$sql .= ' WHERE rowid = '.((int) $obj->rowid);
+		} else {
+			$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility';
+			$sql .= ' (entity, fk_user, active, date_creation, fk_user_author)';
+			$sql .= ' VALUES ('.((int) $conf->entity).', '.((int) $fkUser).", 1, '".$db->idate(dol_now())."', ".((int) $user->id).')';
+		}
 		if (!$db->query($sql)) {
 			$error++;
 			break;
@@ -226,7 +227,7 @@ function lmdbreferral_print_setup_users()
 	global $db, $langs;
 
 	$selected = array();
-	$sql = 'SELECT fk_user FROM '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility WHERE entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').') AND active = 1';
+	$sql = 'SELECT DISTINCT fk_user FROM '.MAIN_DB_PREFIX.'lmdbreferral_user_eligibility WHERE entity IN ('.lmdbreferralGetEntitySql('lmdbreferralusereligibility').') AND active = 1';
 	$resql = $db->query($sql);
 	if ($resql) {
 		while ($obj = $db->fetch_object($resql)) {
@@ -236,16 +237,10 @@ function lmdbreferral_print_setup_users()
 
 	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans('LmdbReferralEligibleUsers').'</td><td>';
 	print '<select class="flat minwidth500 multiselect2" multiple name="eligible_users[]" id="eligible_users">';
-	$sql = 'SELECT rowid, lastname, firstname, login FROM '.MAIN_DB_PREFIX.'user WHERE statut = 1 ORDER BY lastname ASC, firstname ASC, login ASC';
-	$resql = $db->query($sql);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$label = trim($obj->firstname.' '.$obj->lastname);
-			if ($label === '') {
-				$label = $obj->login;
-			}
-			print '<option value="'.((int) $obj->rowid).'"'.(!empty($selected[(int) $obj->rowid]) ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
-		}
+	$selectableUsers = lmdbreferralGetSelectableReferrerUsers(false);
+	foreach ($selectableUsers as $selectableUser) {
+		$label = lmdbreferralFormatUserReferrerLabel($selectableUser['firstname'], $selectableUser['lastname'], $selectableUser['login']);
+		print '<option value="'.((int) $selectableUser['rowid']).'"'.(!empty($selected[(int) $selectableUser['rowid']]) ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
 	}
 	print '</select>';
 	if (function_exists('ajax_combobox')) {
