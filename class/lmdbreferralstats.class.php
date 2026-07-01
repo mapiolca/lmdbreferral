@@ -131,14 +131,14 @@ class LmdbReferralStats
 			$out['active_referred'] = (int) $obj->active_referred;
 			$out['signed_referred'] = (int) $obj->signed_referred;
 			$out['signed_propals'] = (int) $obj->signed_propals;
-			$out['amount_ht'] = (float) $obj->amount_ht;
-			$out['amount_ttc'] = (float) $obj->amount_ttc;
+			$out['amount_ht'] = lmdbreferralRoundAmount($obj->amount_ht);
+			$out['amount_ttc'] = lmdbreferralRoundAmount($obj->amount_ttc);
 			$out['average_delay'] = (float) $obj->average_delay;
 		}
 		$this->db->free($resql);
 
 		$out['conversion_rate'] = $out['total_referred'] > 0 ? ($out['signed_referred'] / $out['total_referred'] * 100) : 0.0;
-		$out['average_basket_ht'] = $out['signed_referred'] > 0 ? ($out['amount_ht'] / $out['signed_referred']) : 0.0;
+		$out['average_basket_ht'] = lmdbreferralRoundAmount($out['signed_referred'] > 0 ? ($out['amount_ht'] / $out['signed_referred']) : 0.0);
 		$out['referred_became_referrers'] = $this->getReferredBecameReferrers($filters);
 
 		return $out;
@@ -210,8 +210,8 @@ class LmdbReferralStats
 		}
 		if ($obj = $this->db->fetch_object($resql)) {
 			$out['signed_propals'] = (int) $obj->signed_propals;
-			$out['amount_ht'] = (float) $obj->amount_ht;
-			$out['amount_ttc'] = (float) $obj->amount_ttc;
+			$out['amount_ht'] = lmdbreferralRoundAmount($obj->amount_ht);
+			$out['amount_ttc'] = lmdbreferralRoundAmount($obj->amount_ttc);
 			$out['first_signature_date'] = !empty($obj->first_signature_date) ? (string) $obj->first_signature_date : '';
 			$out['last_signature_date'] = !empty($obj->last_signature_date) ? (string) $obj->last_signature_date : '';
 		}
@@ -219,7 +219,7 @@ class LmdbReferralStats
 
 		$out['is_transformed'] = $out['signed_propals'] > 0;
 		$out['is_locked'] = $out['is_transformed'];
-		$out['average_basket_ht'] = $out['signed_propals'] > 0 ? ($out['amount_ht'] / $out['signed_propals']) : 0.0;
+		$out['average_basket_ht'] = lmdbreferralRoundAmount($out['signed_propals'] > 0 ? ($out['amount_ht'] / $out['signed_propals']) : 0.0);
 		if ($out['first_signature_date'] !== '' && !empty($link->date_creation)) {
 			$out['days_to_first_signature'] = $this->getDateDiffInDays($this->dateToTimestamp($link->date_creation), $this->dateToTimestamp($out['first_signature_date']));
 		}
@@ -240,8 +240,8 @@ class LmdbReferralStats
 			$out['propals'][] = array(
 				'fk_propal' => $propalId,
 				'ref' => $ref,
-				'amount_ht' => (float) $obj->amount_ht,
-				'amount_ttc' => (float) $obj->amount_ttc,
+				'amount_ht' => lmdbreferralRoundAmount($obj->amount_ht),
+				'amount_ttc' => lmdbreferralRoundAmount($obj->amount_ttc),
 				'date_event' => !empty($obj->date_event) ? (string) $obj->date_event : '',
 			);
 		}
@@ -267,9 +267,9 @@ class LmdbReferralStats
 			'active_referred' => (int) $overview['active_referred'],
 			'signed_referred' => (int) $overview['signed_referred'],
 			'signed_propals' => (int) $overview['signed_propals'],
-			'amount_ht' => (float) $overview['amount_ht'],
-			'amount_ttc' => (float) $overview['amount_ttc'],
-			'average_basket_ht' => (float) $overview['average_basket_ht'],
+			'amount_ht' => lmdbreferralRoundAmount($overview['amount_ht']),
+			'amount_ttc' => lmdbreferralRoundAmount($overview['amount_ttc']),
+			'average_basket_ht' => lmdbreferralRoundAmount($overview['average_basket_ht']),
 			'conversion_rate' => (float) $overview['conversion_rate'],
 			'steps' => array(
 				array('key' => 'total_referred', 'label' => 'LmdbReferralTotalReferred', 'value' => $total, 'percent' => 100.0),
@@ -400,7 +400,7 @@ class LmdbReferralStats
 
 		foreach ($direct as $node) {
 			$nodes[$node['id']] = $node;
-			$edges[] = array('from' => $centerKey, 'to' => $node['id'], 'status' => (int) $node['status'], 'amount_ht' => (float) $node['amount_ht']);
+			$edges[] = array('from' => $centerKey, 'to' => $node['id'], 'status' => (int) $node['status'], 'amount_ht' => lmdbreferralRoundAmount($node['amount_ht']));
 		}
 
 		if ((int) $filters['depth'] > 1 && count($nodes) < $maxNodes) {
@@ -420,7 +420,7 @@ class LmdbReferralStats
 						$node['level'] = 2;
 						$nodes[$node['id']] = $node;
 					}
-					$edges[] = array('from' => $firstLevelId, 'to' => $node['id'], 'status' => (int) $node['status'], 'amount_ht' => (float) $node['amount_ht']);
+					$edges[] = array('from' => $firstLevelId, 'to' => $node['id'], 'status' => (int) $node['status'], 'amount_ht' => lmdbreferralRoundAmount($node['amount_ht']));
 				}
 			}
 		}
@@ -513,7 +513,8 @@ class LmdbReferralStats
 		$out = array();
 		while ($obj = $this->db->fetch_object($resql)) {
 			$signedReferred = (int) $obj->signed_referred;
-			$amountHt = (float) $obj->amount_ht;
+			$amountHt = lmdbreferralRoundAmount($obj->amount_ht);
+			$amountTtc = lmdbreferralRoundAmount($obj->amount_ttc);
 			$referrerId = (string) $obj->referrer_type === 'soc' ? (int) $obj->fk_soc_parrain : (int) $obj->fk_user_parrain;
 			$out[] = array(
 				'referrer_type' => (string) $obj->referrer_type,
@@ -523,8 +524,8 @@ class LmdbReferralStats
 				'signed_referred' => $signedReferred,
 				'signed_propals' => (int) $obj->signed_propals,
 				'amount_ht' => $amountHt,
-				'amount_ttc' => (float) $obj->amount_ttc,
-				'average_basket_ht' => $signedReferred > 0 ? ($amountHt / $signedReferred) : 0.0,
+				'amount_ttc' => $amountTtc,
+				'average_basket_ht' => lmdbreferralRoundAmount($signedReferred > 0 ? ($amountHt / $signedReferred) : 0.0),
 			);
 		}
 		$this->db->free($resql);
@@ -876,7 +877,7 @@ class LmdbReferralStats
 				'type' => $typeNode,
 				'level' => 1,
 				'status' => (int) $obj->status,
-				'amount_ht' => (float) $obj->amount_ht,
+				'amount_ht' => lmdbreferralRoundAmount($obj->amount_ht),
 				'signed_propals' => $signedPropals,
 				'url' => DOL_URL_ROOT.'/societe/card.php?socid='.((int) $obj->fk_soc_filleul),
 			);

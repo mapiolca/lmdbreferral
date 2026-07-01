@@ -86,8 +86,8 @@ function lmdbreferral_dashboard_print_kpis(array $overview)
 		array('label' => 'LmdbReferralActiveReferred', 'value' => (int) $overview['active_referred'], 'class' => 'success'),
 		array('label' => 'LmdbReferralSignedReferred', 'value' => (int) $overview['signed_referred'], 'class' => 'success'),
 		array('label' => 'LmdbReferralConversionRate', 'value' => price((float) $overview['conversion_rate']).' %', 'class' => 'accent'),
-		array('label' => 'LmdbReferralGeneratedCAHT', 'value' => price((float) $overview['amount_ht']), 'class' => 'money'),
-		array('label' => 'LmdbReferralAverageBasketHT', 'value' => price((float) $overview['average_basket_ht']), 'class' => 'money'),
+		array('label' => 'LmdbReferralGeneratedCAHT', 'value' => lmdbreferralFormatAmount($overview['amount_ht']), 'class' => 'money'),
+		array('label' => 'LmdbReferralAverageBasketHT', 'value' => lmdbreferralFormatAmount($overview['average_basket_ht']), 'class' => 'money'),
 		array('label' => 'LmdbReferralAverageDelay', 'value' => price((float) $overview['average_delay']).' '.$langs->trans('Days'), 'class' => 'neutral'),
 		array('label' => 'LmdbReferralBecameReferrers', 'value' => (int) $overview['referred_became_referrers'], 'class' => 'accent'),
 	);
@@ -121,7 +121,7 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 		foreach ($funnel['steps'] as $step) {
 			$value = isset($step['value']) ? (int) $step['value'] : 0;
 			$percent = isset($step['percent']) ? (float) $step['percent'] : 0.0;
-			$displayPercent = price((float) price2num($percent, 'MT'));
+			$displayPercent = price((float) price2num($percent, 2));
 			print '<tr class="oddeven">';
 			print '<td class="titlefield">'.$langs->trans((string) $step['label']).'</td>';
 			print '<td class="right maxwidth100">'.((int) $value).' <span class="opacitymedium">('.$displayPercent.' %)</span></td>';
@@ -130,9 +130,9 @@ function lmdbreferral_dashboard_print_funnel(array $funnel)
 		}
 	}
 	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralSignedProposal').'</td><td class="right">'.((int) $funnel['signed_propals']).'</td><td></td></tr>';
-	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralGeneratedCAHT').'</td><td class="right">'.price((float) $funnel['amount_ht']).'</td><td></td></tr>';
-	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralSignedAmountTTC').'</td><td class="right">'.price((float) $funnel['amount_ttc']).'</td><td></td></tr>';
-	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralAverageBasketHT').'</td><td class="right">'.price((float) $funnel['average_basket_ht']).'</td><td></td></tr>';
+	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralGeneratedCAHT').'</td><td class="right">'.lmdbreferralFormatAmount($funnel['amount_ht']).'</td><td></td></tr>';
+	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralSignedAmountTTC').'</td><td class="right">'.lmdbreferralFormatAmount($funnel['amount_ttc']).'</td><td></td></tr>';
+	print '<tr class="liste_total"><td>'.$langs->trans('LmdbReferralAverageBasketHT').'</td><td class="right">'.lmdbreferralFormatAmount($funnel['average_basket_ht']).'</td><td></td></tr>';
 	print '</table>';
 }
 
@@ -191,7 +191,7 @@ function lmdbreferral_dashboard_print_funnel_tunnel(array $funnel)
 		$bottomRight = $bottomLeft + $bottomWidth;
 		$contentWidth = min($topWidth, $bottomWidth);
 		$clipPath = 'polygon('.price2num($topLeft, 'MS').'% 0, '.price2num($topRight, 'MS').'% 0, '.price2num($bottomRight, 'MS').'% 100%, '.price2num($bottomLeft, 'MS').'% 100%)';
-		$displayPercent = price((float) price2num($percent, 'MT'));
+		$displayPercent = price((float) price2num($percent, 2));
 		$class = $index === count($steps) - 1 ? ' lmdbreferral-funnel-stage-final' : '';
 		print '<div class="lmdbreferral-funnel-stage'.$class.'" style="-webkit-clip-path: '.$clipPath.'; clip-path: '.$clipPath.';">';
 		print '<div class="lmdbreferral-funnel-stage-content" style="width:'.price2num($contentWidth, 'MS').'%">';
@@ -199,7 +199,7 @@ function lmdbreferral_dashboard_print_funnel_tunnel(array $funnel)
 		print '<div class="lmdbreferral-funnel-stage-value">'.((int) $step['value']).'</div>';
 		print '<div class="lmdbreferral-funnel-stage-meta">'.$displayPercent.' %</div>';
 		if ($step['amount_ht'] !== null) {
-			print '<div class="lmdbreferral-funnel-stage-amount">'.price((float) $step['amount_ht']).' '.$langs->trans('HT').'</div>';
+			print '<div class="lmdbreferral-funnel-stage-amount">'.lmdbreferralFormatAmount($step['amount_ht']).' '.$langs->trans('HT').'</div>';
 		}
 		print '</div>';
 		print '</div>';
@@ -230,7 +230,7 @@ function lmdbreferral_dashboard_print_ranking_signed(array $rows)
 		print '<td>'.$langs->trans((string) $row['referrer_type'] === 'soc' ? 'ThirdParty' : 'User').'</td>';
 		print '<td class="right">'.((int) $row['filleuls']).'</td>';
 		print '<td class="right">'.((int) $row['signed_referred']).'</td>';
-		print '<td class="right">'.price((float) $row['amount_ht']).'</td>';
+		print '<td class="right">'.lmdbreferralFormatAmount($row['amount_ht']).'</td>';
 		print '</tr>';
 	}
 	if ($rank === 0) {
@@ -259,9 +259,9 @@ function lmdbreferral_dashboard_print_ranking_amount(array $rows)
 		print '<td class="right">'.$rank.'</td>';
 		print '<td>'.lmdbreferralGetReferrerNomUrl((string) $row['referrer_type'], (int) $row['referrer_id']).'</td>';
 		print '<td>'.$langs->trans((string) $row['referrer_type'] === 'soc' ? 'ThirdParty' : 'User').'</td>';
-		print '<td class="right">'.price((float) $row['amount_ht']).'</td>';
+		print '<td class="right">'.lmdbreferralFormatAmount($row['amount_ht']).'</td>';
 		print '<td class="right">'.((int) $row['signed_referred']).'</td>';
-		print '<td class="right">'.price((float) $row['average_basket_ht']).'</td>';
+		print '<td class="right">'.lmdbreferralFormatAmount($row['average_basket_ht']).'</td>';
 		print '</tr>';
 	}
 	if ($rank === 0) {

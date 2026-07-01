@@ -251,8 +251,8 @@ if ($resql) {
 		print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.(int) $obj->fk_soc_filleul.'">'.dol_escape_htmltag($obj->filleul_name).'</a></td>';
 		print '<td>'.dol_print_date($db->jdate($obj->date_creation), 'day').'</td>';
 		print '<td class="center">'.lmdbreferralFormatSignedProposalRefs((int) $obj->signed_count, $obj->propal_refs).'</td>';
-		print '<td class="right">'.price((float) $obj->signed_amount_ht).'</td>';
-		print '<td class="right">'.price((float) $obj->signed_amount_ttc).'</td>';
+		print '<td class="right">'.lmdbreferralFormatAmount($obj->signed_amount_ht).'</td>';
+		print '<td class="right">'.lmdbreferralFormatAmount($obj->signed_amount_ttc).'</td>';
 		print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
 		print '<td align="center">'.lmdbreferralMulticompanyEntityBadge((int) $obj->entity, $entityLabel).'</td>';
 		print '</tr>';

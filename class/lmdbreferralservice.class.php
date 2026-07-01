@@ -462,6 +462,9 @@ class LmdbReferralService
 	{
 		global $conf;
 
+		$amountHt = lmdbreferralRoundAmount($amountHt);
+		$amountTtc = lmdbreferralRoundAmount($amountTtc);
+
 		$entity = $this->getLinkEntity($linkId);
 		if ($entity <= 0) {
 			$entity = (int) $conf->entity;
@@ -744,8 +747,8 @@ class LmdbReferralService
 			$note .= "\n".$langs->transnoentitiesnoconv('LmdbReferralSignedProposal').': '.$fkPropal;
 		}
 		if ((float) $amountHt != 0 || (float) $amountTtc != 0) {
-			$note .= "\n".$langs->transnoentitiesnoconv('AmountHT').': '.price((float) $amountHt);
-			$note .= "\n".$langs->transnoentitiesnoconv('AmountTTC').': '.price((float) $amountTtc);
+			$note .= "\n".$langs->transnoentitiesnoconv('AmountHT').': '.lmdbreferralFormatAmount($amountHt);
+			$note .= "\n".$langs->transnoentitiesnoconv('AmountTTC').': '.lmdbreferralFormatAmount($amountTtc);
 		}
 
 		$actioncomm = new ActionComm($this->db);

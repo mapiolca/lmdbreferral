@@ -607,6 +607,29 @@ function lmdbreferralFormatSignedProposalRefs($signedCount, $propalRefs)
 }
 
 /**
+ * Round a monetary amount using Dolibarr total price precision.
+ *
+ * @param int|float|string|null $amount Amount
+ * @return float
+ */
+function lmdbreferralRoundAmount($amount)
+{
+	return (float) price2num($amount, 'MT');
+}
+
+/**
+ * Format a monetary amount using Dolibarr total price precision and currency.
+ *
+ * @param int|float|string|null $amount   Amount
+ * @param Translate|string      $outlangs Output language or empty string
+ * @return string
+ */
+function lmdbreferralFormatAmount($amount, $outlangs = '')
+{
+	return price(lmdbreferralRoundAmount($amount), 0, $outlangs, 1, -1, 'MT', 'auto');
+}
+
+/**
  * Print individual statistics for a referral link.
  *
  * @param array{
@@ -646,11 +669,11 @@ function lmdbreferralPrintLinkStatsBlock(array $stats)
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralGeneratedCAHT').'</td>';
-	print '<td class="right nowrap">'.price((float) ($stats['amount_ht'] ?? 0.0)).'</td>';
+	print '<td class="right nowrap">'.lmdbreferralFormatAmount($stats['amount_ht'] ?? 0.0).'</td>';
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralAverageBasketHT').'</td>';
-	print '<td class="right nowrap">'.price((float) ($stats['average_basket_ht'] ?? 0.0)).'</td>';
+	print '<td class="right nowrap">'.lmdbreferralFormatAmount($stats['average_basket_ht'] ?? 0.0).'</td>';
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralLastSignatureDate').'</td>';
@@ -671,7 +694,7 @@ function lmdbreferralPrintLinkStatsBlock(array $stats)
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralSignedAmountTTC').'</td>';
-	print '<td class="right nowrap">'.price((float) ($stats['amount_ttc'] ?? 0.0)).'</td>';
+	print '<td class="right nowrap">'.lmdbreferralFormatAmount($stats['amount_ttc'] ?? 0.0).'</td>';
 	print '</tr>';
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('LmdbReferralFirstSignatureDate').'</td>';

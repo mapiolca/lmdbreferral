@@ -510,7 +510,7 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 	 */
 	private function formatAmount($amount)
 	{
-		return html_entity_decode(price((float) $amount), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+		return html_entity_decode(lmdbreferralFormatAmount($amount), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 	}
 
 	/**

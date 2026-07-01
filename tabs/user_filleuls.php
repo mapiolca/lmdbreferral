@@ -236,8 +236,8 @@ function lmdbreferral_print_user_filleuls_table($db, $langs, $userId)
 			print '<td class="center">'.lmdbreferralStatusBadge((int) $obj->status).'</td>';
 			print '<td class="center">'.lmdbreferralFormatSignedProposalRefs((int) $obj->signed_count, $obj->propal_refs).'</td>';
 			print '<td>'.($obj->date_signature ? dol_print_date($db->jdate($obj->date_signature), 'day') : '').'</td>';
-			print '<td class="right">'.price((float) $obj->amount_ht).'</td>';
-			print '<td class="right">'.price((float) $obj->amount_ttc).'</td>';
+			print '<td class="right">'.lmdbreferralFormatAmount($obj->amount_ht).'</td>';
+			print '<td class="right">'.lmdbreferralFormatAmount($obj->amount_ttc).'</td>';
 			print '<td align="center">'.lmdbreferralMulticompanyEntityBadge((int) $obj->entity, $obj->entity_label ? (string) $obj->entity_label : (string) $obj->entity).'</td>';
 			print '</tr>';
 		}
