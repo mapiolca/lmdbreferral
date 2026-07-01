@@ -364,16 +364,22 @@ class LmdbReferralService
 		}
 
 		$created = 0;
-		$sql = 'SELECT p.rowid, p.total_ht, p.total_ttc, p.date_signature, p.date_valid, p.tms';
+		$statusFilter = implode(',', array_map('intval', $this->getSignedProposalStatuses()));
+
+		$sql = 'SELECT p.rowid, p.fk_statut, p.total_ht, p.total_ttc, p.date_signature, p.date_valid, p.tms';
 		$sql .= ' FROM '.MAIN_DB_PREFIX.'propal as p';
 		$sql .= ' WHERE p.entity IN ('.lmdbreferralGetEntitySql('propal').')';
 		$sql .= ' AND p.fk_soc = '.((int) $link->fk_soc_filleul);
-		$sql .= ' AND p.fk_statut = '.((int) Propal::STATUS_SIGNED);
+		$sql .= ' AND p.fk_statut IN ('.$statusFilter.')';
 		$sql .= ' ORDER BY p.date_signature ASC, p.rowid ASC';
 		$resql = $this->db->query($sql);
 		if (!$resql) {
 			$this->error = $this->db->lasterror();
 			return -1;
+		}
+		if ($this->db->num_rows($resql) <= 0) {
+			dol_syslog(__METHOD__.' no signed or billed proposals found for referral link id='.((int) $link->id).' referred thirdparty id='.((int) $link->fk_soc_filleul), LOG_DEBUG);
+			return 0;
 		}
 
 		while (is_object($obj = $this->db->fetch_object($resql))) {
@@ -397,6 +403,11 @@ class LmdbReferralService
 			);
 			if ($result < 0) {
 				return -1;
+			}
+			if ($result > 0) {
+				dol_syslog(__METHOD__.' created internal propal_signed event for referral link id='.((int) $link->id).' proposal id='.((int) $obj->rowid).' proposal status='.(isset($obj->fk_statut) ? (int) $obj->fk_statut : 0), LOG_DEBUG);
+			} else {
+				dol_syslog(__METHOD__.' internal propal_signed event already exists for referral link id='.((int) $link->id).' proposal id='.((int) $obj->rowid).' proposal status='.(isset($obj->fk_statut) ? (int) $obj->fk_statut : 0), LOG_DEBUG);
 			}
 			$created += $result;
 		}
@@ -602,6 +613,7 @@ class LmdbReferralService
 		$link = new LmdbReferralLink($this->db);
 		if ($link->fetch((int) $linkId) <= 0) {
 			$this->error = 'ErrorRecordNotFound';
+			dol_syslog(__METHOD__.' referral link not found id='.((int) $linkId), LOG_WARNING);
 			return -1;
 		}
 
@@ -615,6 +627,7 @@ class LmdbReferralService
 			return -1;
 		}
 		if ($this->db->num_rows($resql) <= 0) {
+			dol_syslog(__METHOD__.' skipped native object link for referral link id='.((int) $link->id).' proposal id='.((int) $fkPropal).': proposal not found in current entity scope', LOG_WARNING);
 			return 0;
 		}
 
@@ -632,6 +645,7 @@ class LmdbReferralService
 			return -1;
 		}
 		if ($this->db->num_rows($resql) > 0) {
+			dol_syslog(__METHOD__.' native object link already exists for referral link id='.((int) $link->id).' proposal id='.((int) $fkPropal).' targettype='.$targetType, LOG_DEBUG);
 			return 0;
 		}
 
@@ -640,10 +654,22 @@ class LmdbReferralService
 		if ($result <= 0) {
 			$this->error = $link->error;
 			$this->errors = $link->errors;
+			dol_syslog(__METHOD__.' failed to create native object link for referral link id='.((int) $link->id).' proposal id='.((int) $fkPropal).' targettype='.$targetType.' error='.$this->error, LOG_WARNING);
 			return -1;
 		}
+		dol_syslog(__METHOD__.' created native object link for referral link id='.((int) $link->id).' proposal id='.((int) $fkPropal).' targettype='.$targetType, LOG_DEBUG);
 
 		return 1;
+	}
+
+	/**
+	 * Return proposal statuses counted as signed for referral attribution.
+	 *
+	 * @return array<int,int>
+	 */
+	private function getSignedProposalStatuses()
+	{
+		return array((int) Propal::STATUS_SIGNED, (int) Propal::STATUS_BILLED);
 	}
 
 	/**

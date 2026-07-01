@@ -102,6 +102,12 @@ if ($action === 'delete') {
 
 $form = new Form($db);
 $formfile = new FormFile($db);
+$referrerNomUrl = lmdbreferralGetReferrerNomUrl($object->referrer_type, $object->referrer_type === 'soc' ? (int) $object->fk_soc_parrain : (int) $object->fk_user_parrain);
+$filleulNomUrl = '';
+$soc = new Societe($db);
+if ($soc->fetch((int) $object->fk_soc_filleul) > 0) {
+	$filleulNomUrl = $soc->getNomUrl(1);
+}
 
 llxHeader('', $langs->trans('LmdbReferralLink').' - '.$object->ref);
 
@@ -109,46 +115,44 @@ $head = lmdbreferralLinkPrepareHead($object);
 print dol_get_fiche_head($head, 'card', $langs->trans('LmdbReferralLink'), -1, 'fa-handshake');
 
 $linkback = '<a href="'.dol_buildpath('/lmdbreferral/list.php', 1).'">'.$langs->trans('BackToList').'</a>';
-$morehtmlref = '';
+$morehtmlref = '<div class="refidno">';
+$morehtmlref .= '<strong>'.$langs->trans('LmdbReferralReferrer').'</strong> : '.$referrerNomUrl;
+$morehtmlref .= '<br><strong>'.$langs->trans('LmdbReferralReferredThirdparty').'</strong> : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
+$morehtmlref .= '<br><strong>'.$langs->trans('DateCreation').'</strong> : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
+$morehtmlref .= '</div>';
 
 dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref);
 
-print '<div class="fichecenter">';
 print '<div class="underbanner clearboth"></div>';
-print '<table class="border tableforfield centpercent">';
 
-print '<tr><td class="titlefield">'.$langs->trans('LmdbReferralReferrer').'</td><td>'.lmdbreferralGetReferrerNomUrl($object->referrer_type, $object->referrer_type === 'soc' ? (int) $object->fk_soc_parrain : (int) $object->fk_user_parrain).'</td></tr>';
-print '<tr><td>'.$langs->trans('LmdbReferralReferredThirdparty').'</td><td>';
-$soc = new Societe($db);
-if ($soc->fetch((int) $object->fk_soc_filleul) > 0) {
-	print $soc->getNomUrl(1);
-}
-print '</td></tr>';
-print '<tr><td>'.$langs->trans('DateCreation').'</td><td>'.dol_print_date($db->jdate($object->date_creation), 'dayhour').'</td></tr>';
-if (!empty($object->date_modification)) {
-	print '<tr><td>'.$langs->trans('DateModificationShort').'</td><td>'.dol_print_date($db->jdate($object->date_modification), 'dayhour').'</td></tr>';
-}
-if (!empty($object->date_annulation)) {
-	print '<tr><td>'.$langs->trans('LmdbReferralCancellationDate').'</td><td>'.dol_print_date($db->jdate($object->date_annulation), 'dayhour').'</td></tr>';
-}
-
-print '</table>';
-print '</div>';
-
-if ((int) $object->status === LmdbReferralLink::STATUS_ACTIVE && $permissiontocancel && !$linkLocked) {
-	print '<div class="tabsAction">';
-	print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.(int) $object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('LmdbReferralCancelLink').'</a>';
-	print '</div>';
-}
-if ($permissiontodelete) {
-	print '<div class="tabsAction">';
-	print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.(int) $object->id.'&action=delete&token='.newToken().'">'.$langs->trans('LmdbReferralDeleteLink').'</a>';
+if (!empty($object->date_modification) || !empty($object->date_annulation)) {
+	print '<div class="fichecenter">';
+	print '<table class="border tableforfield centpercent">';
+	if (!empty($object->date_modification)) {
+		print '<tr><td class="titlefield">'.$langs->trans('DateModificationShort').'</td><td>'.dol_print_date($db->jdate($object->date_modification), 'dayhour').'</td></tr>';
+	}
+	if (!empty($object->date_annulation)) {
+		print '<tr><td class="titlefield">'.$langs->trans('LmdbReferralCancellationDate').'</td><td>'.dol_print_date($db->jdate($object->date_annulation), 'dayhour').'</td></tr>';
+	}
+	print '</table>';
 	print '</div>';
 }
 
 print dol_get_fiche_end();
 
 lmdbreferralPrintLinkStatsBlock($linkStats);
+
+$showCancelAction = (int) $object->status === LmdbReferralLink::STATUS_ACTIVE && $permissiontocancel && !$linkLocked;
+if ($showCancelAction || $permissiontodelete) {
+	print '<div class="tabsAction">';
+	if ($showCancelAction) {
+		print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.(int) $object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('LmdbReferralCancelLink').'</a>';
+	}
+	if ($permissiontodelete) {
+		print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.(int) $object->id.'&action=delete&token='.newToken().'">'.$langs->trans('LmdbReferralDeleteLink').'</a>';
+	}
+	print '</div>';
+}
 
 print '<div class="fichecenter">';
 print '<div class="fichehalfleft">';

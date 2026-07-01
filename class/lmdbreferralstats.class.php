@@ -175,7 +175,7 @@ class LmdbReferralStats
 			'first_signature_date' => '',
 			'last_signature_date' => '',
 			'days_to_first_signature' => null,
-			'age_days' => $this->getDateDiffInDays($this->dateToTimestamp(!empty($link->date_creation) ? $link->date_creation : 0), dol_now()),
+			'age_days' => 0,
 			'propals' => array(),
 		);
 
@@ -187,6 +187,11 @@ class LmdbReferralStats
 			$this->error = 'NotEnoughPermissions';
 			return $out;
 		}
+
+		$linkCreationTimestamp = $this->dateToTimestamp(!empty($link->date_creation) ? $link->date_creation : 0);
+		$referredCreationTimestamp = $this->getReferredThirdpartyCreationTimestamp(!empty($link->fk_soc_filleul) ? (int) $link->fk_soc_filleul : 0);
+		$ageStartTimestamp = $referredCreationTimestamp > 0 ? $referredCreationTimestamp : $linkCreationTimestamp;
+		$out['age_days'] = $this->getDateDiffInDays($ageStartTimestamp, dol_now());
 
 		$where = array(
 			'e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')',
@@ -681,6 +686,35 @@ class LmdbReferralStats
 		}
 
 		return (int) $this->db->jdate($date);
+	}
+
+	/**
+	 * Return the creation timestamp of the referred thirdparty in the current entity scope.
+	 *
+	 * @param int $fkSocFilleul Referred thirdparty id
+	 * @return int
+	 */
+	private function getReferredThirdpartyCreationTimestamp($fkSocFilleul)
+	{
+		if ((int) $fkSocFilleul <= 0) {
+			return 0;
+		}
+
+		$sql = 'SELECT s.datec';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'societe as s';
+		$sql .= ' WHERE s.rowid = '.((int) $fkSocFilleul);
+		$sql .= ' AND s.entity IN ('.lmdbreferralGetEntitySql('societe').')';
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return 0;
+		}
+
+		$obj = $this->db->fetch_object($resql);
+		$timestamp = is_object($obj) && !empty($obj->datec) ? $this->dateToTimestamp($obj->datec) : 0;
+		$this->db->free($resql);
+
+		return $timestamp;
 	}
 
 	/**
