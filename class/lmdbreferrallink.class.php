@@ -274,22 +274,6 @@ class LmdbReferralLink extends CommonObject
 		$elementType = $this->getElementType();
 		$agendaElementType = lmdbreferralGetAgendaElementType();
 
-		$sql = 'SELECT e.rowid';
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'lmdbreferral_event as e';
-		$sql .= ' WHERE e.entity IN ('.lmdbreferralGetEntitySql('lmdbreferralevent').')';
-		$sql .= ' AND e.fk_lmdbreferral_link = '.((int) $this->id);
-		$sql .= " AND e.event_type = 'propal_signed'";
-		$sql .= $this->db->plimit(1);
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		if ($this->db->num_rows($resql) > 0) {
-			$this->error = 'LmdbReferralDeleteTransformedForbidden';
-			return -1;
-		}
-
 		$this->db->begin();
 
 		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'actioncomm';

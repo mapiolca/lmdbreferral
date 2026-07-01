@@ -136,7 +136,7 @@ class LmdbReferralApi extends DolibarrApi
 	}
 
 	/**
-	 * Delete referral link if it has not been transformed.
+	 * Delete referral link.
 	 *
 	 * @url DELETE /referrals/{id}
 	 *

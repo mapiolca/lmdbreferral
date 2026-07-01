@@ -501,7 +501,7 @@ function lmdbreferralMassCancelLinks($db, $user, $ids, $whereExtra = '')
 }
 
 /**
- * Delete selected referral links if they have not been transformed.
+ * Delete selected referral links.
  *
  * @param DoliDB     $db         Database handler
  * @param User       $user       Current user
@@ -553,16 +553,11 @@ function lmdbreferralMassDeleteLinks($db, $user, $ids, $whereExtra = '')
 		}
 
 		if ($service->deleteLink($linkId, $user) < 0) {
-			$linkRef = !empty($obj->ref) ? (string) $obj->ref : (string) $linkId;
-			if ($service->error === 'LmdbReferralDeleteTransformedForbidden') {
-				$result['errors'][] = $langs->trans('LmdbReferralMassDeleteTransformed', $linkRef);
-			} else {
-				$message = $service->error !== '' ? $langs->trans($service->error) : $langs->trans('Error');
-				if (!empty($service->errors)) {
-					$message .= ' '.implode(', ', $service->errors);
-				}
-				$result['errors'][] = $message;
+			$message = $service->error !== '' ? $langs->trans($service->error) : $langs->trans('Error');
+			if (!empty($service->errors)) {
+				$message .= ' '.implode(', ', $service->errors);
 			}
+			$result['errors'][] = $message;
 			continue;
 		}
 		$result['done']++;

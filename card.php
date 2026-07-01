@@ -48,7 +48,6 @@ $permtoedit = $permissiontoadd;
 $socid = (int) $object->fk_soc_filleul;
 $service = new LmdbReferralService($db);
 $linkLocked = $service->isLockedBySignedProposal((int) $object->fk_soc_filleul);
-$linkTransformed = $service->isLinkTransformed((int) $object->id);
 $statsService = new LmdbReferralStats($db);
 $linkStats = $statsService->getLinkStats($user, $object);
 $upload_dir = lmdbreferralGetLinkDocumentDir($object);
@@ -90,11 +89,6 @@ if ($action === 'delete') {
 		accessforbidden();
 	}
 	lmdbreferralCheckToken();
-	if ($linkTransformed) {
-		setEventMessages($langs->trans('LmdbReferralDeleteTransformedForbidden'), null, 'errors');
-		header('Location: '.dol_buildpath('/lmdbreferral/card.php', 1).'?id='.(int) $object->id);
-		exit;
-	}
 	if ($service->deleteLink((int) $object->id, $user) < 0) {
 		setEventMessages($langs->trans($service->error), $service->errors, 'errors');
 		header('Location: '.dol_buildpath('/lmdbreferral/card.php', 1).'?id='.(int) $object->id);
@@ -146,7 +140,7 @@ if ((int) $object->status === LmdbReferralLink::STATUS_ACTIVE && $permissiontoca
 	print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.(int) $object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('LmdbReferralCancelLink').'</a>';
 	print '</div>';
 }
-if ($permissiontodelete && !$linkTransformed) {
+if ($permissiontodelete) {
 	print '<div class="tabsAction">';
 	print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.(int) $object->id.'&action=delete&token='.newToken().'">'.$langs->trans('LmdbReferralDeleteLink').'</a>';
 	print '</div>';

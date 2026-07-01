@@ -195,7 +195,7 @@ class LmdbReferralService
 	}
 
 	/**
-	 * Delete a link if it has not been transformed by a signed proposal.
+	 * Delete a referral link and its linked data.
 	 *
 	 * @param int  $id Link id
 	 * @param User $user User
@@ -206,10 +206,6 @@ class LmdbReferralService
 		$link = new LmdbReferralLink($this->db);
 		if ($link->fetch($id) <= 0) {
 			$this->error = 'ErrorRecordNotFound';
-			return -1;
-		}
-		if ($this->isLinkTransformed((int) $link->id)) {
-			$this->error = 'LmdbReferralDeleteTransformedForbidden';
 			return -1;
 		}
 		if ($link->delete($user) < 0) {
