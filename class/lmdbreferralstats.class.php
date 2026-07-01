@@ -197,7 +197,8 @@ class LmdbReferralStats
 		}
 
 		$linkCreationTimestamp = $this->dateToTimestamp(!empty($link->date_creation) ? $link->date_creation : 0);
-		$referredCreationTimestamp = $this->getReferredThirdpartyCreationTimestamp(!empty($link->fk_soc_filleul) ? (int) $link->fk_soc_filleul : 0);
+		$useReferredCreationDate = getDolGlobalInt('LMDBREFERRAL_USE_REFERRED_THIRDPARTY_CREATION_DATE', 1);
+		$referredCreationTimestamp = $useReferredCreationDate ? $this->getReferredThirdpartyCreationTimestamp(!empty($link->fk_soc_filleul) ? (int) $link->fk_soc_filleul : 0) : 0;
 		$ageStartTimestamp = $referredCreationTimestamp > 0 ? $referredCreationTimestamp : $linkCreationTimestamp;
 		$ageEndTimestamp = dol_now();
 		$out['age_days'] = $this->getDateDiffInDays($ageStartTimestamp, $ageEndTimestamp);
@@ -233,8 +234,8 @@ class LmdbReferralStats
 		$out['is_transformed'] = $out['signed_propals'] > 0;
 		$out['is_locked'] = $out['is_transformed'];
 		$out['average_basket_ht'] = lmdbreferralRoundAmount($out['signed_propals'] > 0 ? ($out['amount_ht'] / $out['signed_propals']) : 0.0);
-		if ($out['first_signature_date'] !== '' && !empty($link->date_creation)) {
-			$delayStartTimestamp = $this->dateToTimestamp($link->date_creation);
+		if ($out['first_signature_date'] !== '' && $ageStartTimestamp > 0) {
+			$delayStartTimestamp = $ageStartTimestamp;
 			$delayEndTimestamp = $this->dateToTimestamp($out['first_signature_date']);
 			$out['days_to_first_signature'] = $this->getDateDiffInDays($delayStartTimestamp, $delayEndTimestamp);
 			if ($delayStartTimestamp > 0 && $delayEndTimestamp > 0) {

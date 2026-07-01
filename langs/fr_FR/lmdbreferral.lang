@@ -39,6 +39,7 @@ LmdbReferralEligibleUsers=Utilisateurs autorisés à être parrains
 LmdbReferralOneActiveReferrer=Un filleul ne peut avoir qu’un seul parrain actif
 LmdbReferralPreventDuplicatePair=Interdire plusieurs liens actifs entre le même parrain et le même filleul
 LmdbReferralLockAfterSignedProposal=Verrouiller le parrain après signature d’un devis
+LmdbReferralUseReferredThirdpartyCreationDate=Utiliser la date de création du tiers filleul comme date de création du lien
 LmdbReferralShowThirdpartyBlock=Afficher le bloc parrain sur fiche tiers
 LmdbReferralShowThirdpartyTab=Ajouter l’onglet filleuls sur fiche tiers
 LmdbReferralShowUserTab=Ajouter l’onglet filleuls sur fiche utilisateur

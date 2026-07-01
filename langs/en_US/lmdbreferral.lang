@@ -39,6 +39,7 @@ LmdbReferralEligibleUsers=Users allowed to be referrers
 LmdbReferralOneActiveReferrer=A referred third party can have only one active referrer
 LmdbReferralPreventDuplicatePair=Prevent multiple active links between the same referrer and referred third party
 LmdbReferralLockAfterSignedProposal=Lock referrer after a proposal is signed
+LmdbReferralUseReferredThirdpartyCreationDate=Use referred third party creation date as referral link creation date
 LmdbReferralShowThirdpartyBlock=Show referrer block on third party card
 LmdbReferralShowThirdpartyTab=Add referred third parties tab on third party card
 LmdbReferralShowUserTab=Add referred third parties tab on user card

@@ -304,13 +304,66 @@ function lmdbreferralGetLinkBannerMoreHtmlRef($object)
 		}
 	}
 
+	$creationDate = lmdbreferralGetLinkEffectiveCreationDate($object);
+
 	$out = '<div class="refidno">';
 	$out .= $langs->trans('LmdbReferralReferrer').' : '.$referrerNomUrl;
 	$out .= '<br>'.$langs->trans('LmdbReferralReferredThirdparty').' : '.($filleulNomUrl !== '' ? $filleulNomUrl : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
-	$out .= '<br>'.$langs->trans('DateCreation').' : '.dol_print_date($db->jdate($object->date_creation), 'dayhour');
+	$out .= '<br>'.$langs->trans('DateCreation').' : '.($creationDate !== '' ? dol_print_date($db->jdate($creationDate), 'dayhour') : '<span class="opacitymedium">'.$langs->trans('NotAvailable').'</span>');
 	$out .= '</div>';
 
 	return $out;
+}
+
+/**
+ * Return the effective business creation date of a referral link.
+ *
+ * @param LmdbReferralLink|object $object Referral link
+ * @return string SQL date
+ */
+function lmdbreferralGetLinkEffectiveCreationDate($object)
+{
+	$thirdpartyCreationDate = '';
+	if (getDolGlobalInt('LMDBREFERRAL_USE_REFERRED_THIRDPARTY_CREATION_DATE', 1) && !empty($object->fk_soc_filleul)) {
+		$thirdpartyCreationDate = lmdbreferralGetReferredThirdpartyCreationDate((int) $object->fk_soc_filleul);
+	}
+
+	if ($thirdpartyCreationDate !== '') {
+		return $thirdpartyCreationDate;
+	}
+
+	return !empty($object->date_creation) ? (string) $object->date_creation : '';
+}
+
+/**
+ * Return the creation date of a referred thirdparty in the current entity scope.
+ *
+ * @param int $fkSocFilleul Referred thirdparty id
+ * @return string SQL date
+ */
+function lmdbreferralGetReferredThirdpartyCreationDate($fkSocFilleul)
+{
+	global $db;
+
+	if ((int) $fkSocFilleul <= 0 || !is_object($db)) {
+		return '';
+	}
+
+	$sql = 'SELECT s.datec';
+	$sql .= ' FROM '.MAIN_DB_PREFIX.'societe as s';
+	$sql .= ' WHERE s.rowid = '.((int) $fkSocFilleul);
+	$sql .= ' AND s.entity IN ('.lmdbreferralGetEntitySql('societe').')';
+	$sql .= $db->plimit(1);
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return '';
+	}
+
+	$obj = $db->fetch_object($resql);
+	$creationDate = is_object($obj) && !empty($obj->datec) ? (string) $obj->datec : '';
+	$db->free($resql);
+
+	return $creationDate;
 }
 
 /**

@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- Ajout d'un réglage pour utiliser la date de création du tiers filleul comme date métier du lien.
 - Affichage normal des libellés du bandeau de fiche, en conservant le rendu natif de la référence.
 - Affichage des durées de transformation et d'âge du lien en années, mois et jours.
 - Rappel des informations principales du lien dans les bannières des onglets documents et agenda.

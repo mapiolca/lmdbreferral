@@ -238,7 +238,7 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$pdf->SetFont('', '', $defaultFontSize - 2);
 		$posy = $pdf->GetY() + 2;
 		$pdf->SetXY($rightX, $posy);
-		$pdf->MultiCell($rightWidth, 3, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'DateCreation').' : '.$this->formatDate($object->date_creation)), 0, 'R');
+		$pdf->MultiCell($rightWidth, 3, $this->pdfText($outputlangs, $this->pdfTrans($outputlangs, 'DateCreation').' : '.$this->formatDate(lmdbreferralGetLinkEffectiveCreationDate($object))), 0, 'R');
 
 		$topShift = max(0, $pdf->GetY() - ($this->marge_haute + 12));
 
@@ -341,7 +341,7 @@ class pdf_standard_lmdbreferrallink extends ModelePDFLmdbReferralLink
 		$rows = array(
 			array($this->pdfTrans($outputlangs, 'Ref'), (string) $object->ref, $this->pdfTrans($outputlangs, 'Status'), $object->getLibStatut(0)),
 			array($this->pdfTrans($outputlangs, 'LmdbReferralReferrer'), $this->getReferrerLabel($object, $outputlangs), $this->pdfTrans($outputlangs, 'LmdbReferralReferredThirdparty'), $this->getThirdpartyLabel((int) $object->fk_soc_filleul)),
-			array($this->pdfTrans($outputlangs, 'DateCreation'), $this->formatDate($object->date_creation), $this->pdfTrans($outputlangs, 'DateModificationShort'), !empty($object->date_modification) ? $this->formatDate($object->date_modification) : $this->pdfTrans($outputlangs, 'NotAvailable')),
+			array($this->pdfTrans($outputlangs, 'DateCreation'), $this->formatDate(lmdbreferralGetLinkEffectiveCreationDate($object)), $this->pdfTrans($outputlangs, 'DateModificationShort'), !empty($object->date_modification) ? $this->formatDate($object->date_modification) : $this->pdfTrans($outputlangs, 'NotAvailable')),
 		);
 		if (!empty($object->date_annulation)) {
 			$rows[] = array($this->pdfTrans($outputlangs, 'LmdbReferralCancellationDate'), $this->formatDate($object->date_annulation), '', '');

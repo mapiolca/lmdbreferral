@@ -75,6 +75,7 @@ class modLmdbReferral extends DolibarrModules
 			array('LMDBREFERRAL_ONE_ACTIVE_REFERRER', 'chaine', '1', 'Allow one active referrer per referred thirdparty', 0, 'current', 0),
 			array('LMDBREFERRAL_PREVENT_DUPLICATE_PAIR', 'chaine', '1', 'Prevent duplicate active referrer/referred pairs', 0, 'current', 0),
 			array('LMDBREFERRAL_LOCK_REFERRER_AFTER_SIGNED_PROPAL', 'chaine', '1', 'Lock referrer after signed proposal', 0, 'current', 0),
+			array('LMDBREFERRAL_USE_REFERRED_THIRDPARTY_CREATION_DATE', 'chaine', '1', 'Use referred thirdparty creation date as referral link business creation date', 0, 'current', 0),
 			array('LMDBREFERRAL_SHOW_THIRDPARTY_BLOCK', 'chaine', '1', 'Show referral block on thirdparty card', 0, 'current', 0),
 			array('LMDBREFERRAL_SHOW_THIRDPARTY_TAB', 'chaine', '1', 'Show thirdparty referrals tab', 0, 'current', 0),
 			array('LMDBREFERRAL_SHOW_USER_TAB', 'chaine', '1', 'Show user referrals tab', 0, 'current', 0),
